@@ -1,0 +1,1 @@
+# core/game should contain functions and classes that manipulate main game logic, such as game state, rules, and interactions.  
