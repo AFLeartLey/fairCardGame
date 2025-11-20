@@ -12,4 +12,5 @@ in src/graphic, following functions should be implemented:
 
 This file should work as a module roadmap for implementing graphic functionalities in the game,
 with most of the actual code being implemented in other files/modules as needed.
+
 '''
