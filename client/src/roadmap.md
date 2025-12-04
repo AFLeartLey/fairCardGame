@@ -127,3 +127,75 @@ Network todo:
 ]
 ```
 
+
+
+
+---
+开始界面
+
+选择主机/客机
+
+`network` 选择怎么实例化（init参数：self, 主机/客机，ip，端口）
+
+先init 然后再调用 start()/connect()
+
+`game` 把这两个接起来
+
+`UI` 选择怎么实例化 network 的界面
+
+由 `UI` 输入信息后调用 `initNetwork(self, is_host, ip, port)` -> 调用 Network 构造函数并进行初始化
+
+
+进入游戏
+
+`network` 通过 send() 发送 json 格式的数据包来进行端对端的信息传递
+
+--- 
+一直存在的
+
+胜负判定 game -> ui
+
+game 调用 UI 侧：`drawGameEnd(stat)`
+stat : win/lose，绘制对应的结束画面；
+
+角色状态，资源状态 game -> ui
+
+ui 调用 game 中 Player 的 `getT()` 来获取信息，其中 T 是需要被绘制的目标信息，包括
+
+- 自己手牌具体内容
+- 双方生命值
+- 双方 cost
+- 双方 手牌数量
+
+手牌 game -> ui 同上
+
+出牌后的状态处理（胜负判定等） game -> ui
+
+game 调用 ui 的 `updateGameBoard()` 以重绘游戏版面
+
+自己回合的
+
+出牌 ui -> game -> network发包
+
+ui 获取手牌；具体知道选择第几张手牌时调用
+
+game：`playCard(id)`
+
+做牌 game (生成可选词条) -> ui (返回操作结果) -> game -> network发包
+
+ui 有一个回合结束按钮；按下后触发 game 的 `turnEnd()` 机制；
+
+在 `turnEnd()` 中：
+
+- 由 game 生成若干个词条用于挑选，并调用 ui 中 `drawCardSelection()` 来绘制选择做牌的画面；
+- ui 获取最终的选择结果作为函数返回值返回，由 game 调用 network 发包
+
+对手回合的
+
+对手出牌 network -> （出牌状态处理） -> `updateGameBoard()`
+
+对手结束回合 network -> game -> ui
+
+- game 调用 ui 中 `drawGivenCard(Card)` 来展示从对手获得的牌；
+- game 调用 ui : `drawTurnStart()`
+
