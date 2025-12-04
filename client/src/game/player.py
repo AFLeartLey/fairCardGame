@@ -19,7 +19,7 @@ class Player:
     def __init__(self):
         self.health = gconstants.PLAYER_MAX_HEALTH
         self.cost = gconstants.PLAYER_INIT_COST
-        self.hand = []
+        self.hand = list[Card]()
 
     def takeDamage(self, damage: int) -> None:
         """Reduce the player's health by `damage`.
@@ -136,17 +136,3 @@ class Player:
             return True
         return False
 
-    def selectCard(self) -> Optional[Card]:
-        """Choose a card (the method is a placeholder for UI/AI selection).
-
-        Selection of a card to play or give to the opponent depends on the
-        UI or AI layer and therefore this method is intentionally
-        unimplemented in the model. Implementers should return a `Card` or
-        None if no selection is possible.
-
-        Returns:
-            Optional[Card]: chosen card or None when no card is selected.
-        """
-
-        # selection logic should be resolved in the UI or AI layer.
-        return None

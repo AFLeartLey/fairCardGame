@@ -15,12 +15,41 @@ EVENT_PLAYER_HEAL = "player_heal"
 EVENT_GAME_START = "game_start"
 EVENT_GAME_END = "game_end"
 
-EVENT_TURN_START = "turn_start"
+EVENT_TURN_START = "turn_start" # deprecated
 EVENT_TURN_END = "turn_end"
+"""
+upon EVENT_TURN_END, the json file should contain:
+{
+    "event": EVENT_TURN_END,
+    "card": card // card drawn by remote at the start of the turn
+    "param": None,
+    "player": "remote"
+}
+"""
 
 EVENT_CARD_DRAWN = "card_drawn"
 EVENT_CARD_PLAYED = "card_played"
 EVENT_CARD_DISCARDED = "card_discarded"
+
+EVENT_REQUEST_CARD = "request_card"
+"""
+upon event_request_card, the json file should contain:
+{
+    "event": EVENT_REQUEST_CARD,
+    "param": None
+    "player": "remote"
+}
+"""
+EVENT_RETURN_CARD = "return_card"
+"""
+upon event_return_card, the json file should contain:
+{
+    "event": EVENT_RETURN_CARD,
+    "card": card,
+    "param": None,
+    "player": "remote"
+}
+"""
 
 EVENT_LIST = [
     EVENT_PLAYER_DAMAGE,
@@ -32,6 +61,7 @@ EVENT_LIST = [
     EVENT_CARD_DRAWN,
     EVENT_CARD_PLAYED,
     EVENT_CARD_DISCARDED,
+    
 ]
 
 """
@@ -91,10 +121,10 @@ including damage amount, heal amount, cost amount, etc.
 CARD_ITEM_VALUES = {}
 
 CARD_ITEM_VALUES[NCARDITEM_SELF_DAMAGE] = {1, 2, 3}
-CARD_ITEM_VALUES[NCARDITEM_CARD_DISCARD] = {1, 2, 3}
+CARD_ITEM_VALUES[NCARDITEM_CARD_DISCARD] = {1, 1, 2}
 CARD_ITEM_VALUES[NCARDITEM_COST_USAGE] = {1, 2, 3}
 
-CARD_ITEM_VALUES[PCARDITEM_HEAL] = {1, 2, 4}
+CARD_ITEM_VALUES[PCARDITEM_HEAL] = {2, 3, 4}
 CARD_ITEM_VALUES[PCARDITEM_CARD_DRAW] = {1, 2, 3}
 CARD_ITEM_VALUES[PCARDITEM_DAMAGE] = {2, 3, 5}
 CARD_ITEM_VALUES[PCARDITEM_COST_RECOVER] = {1, 2, 3}

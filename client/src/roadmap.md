@@ -151,7 +151,7 @@ Network todo:
 `network` 通过 send() 发送 json 格式的数据包来进行端对端的信息传递
 
 --- 
-一直存在的
+游戏进程中
 
 胜负判定 game -> ui
 
@@ -197,5 +197,5 @@ ui 有一个回合结束按钮；按下后触发 game 的 `turnEnd()` 机制；
 对手结束回合 network -> game -> ui
 
 - game 调用 ui 中 `drawGivenCard(Card)` 来展示从对手获得的牌；
-- game 调用 ui : `drawTurnStart()`
+- game 调用 ui : `drawTurnStart()` 绘制回合开始的提示画面
 

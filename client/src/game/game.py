@@ -16,27 +16,3 @@ This file should work as a module roadmap for implementing game functionalities,
 with most of the actual code being implemented in other files/modules as needed.
 """
 
-import client.src.game.constants as gconstants
-import random
-
-class gameState:
-    def __init__(self):
-        pass
-        
-    def initializeGame(self):        
-        pass
-
-    def checkWinLossConditions(self):
-        pass
-
-    def updateGameStateByPlayerAction(self, action):
-        pass
-
-    def updateGameStateByNetworkData(self, data):
-        pass
-
-    def handlePlayerAction(self, player, action):
-        pass
-
-    
-
