@@ -226,6 +226,7 @@ class Network:
                 data: Dict[str, Any],
                 timeout: Optional[float] = None,
                 request_type: str = "rpc_request",
+                send_request: bool = True,
                 to_socket: Optional[socket.socket] = None) -> Dict[str, Any]:
         """
         Perform a synchronous RPC call.
@@ -267,15 +268,10 @@ class Network:
         with self._rpc_lock:
             self._pending_requests[request_id] = future
 
-        request_msg = {
-            "type": request_type,
-            "request_id": request_id,
-            "payload": data,
-            "timestamp": time.time()
-        }
 
         try:
-            self.send(request_msg, to_socket=to_socket)
+            if send_request:
+                self.send(data, to_socket=to_socket)
             try:
                 return future.result(timeout=timeout)
             except TimeoutError:

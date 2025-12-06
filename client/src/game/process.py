@@ -184,12 +184,6 @@ class GameState:
         if not self.checkCardPlayable(card):
             return False
         
-        self.NetworkManager.send({
-            "event": EVENT_CARD_PLAYED,
-            "card": card,
-            "param": None,
-            "player": "remote"
-        })
         # Apply negative card item effects
         match card.getNcarditem():
             case "self_damage":
@@ -206,6 +200,14 @@ class GameState:
             case _:
                 pass
 
+        
+        self.NetworkManager.send({
+            "event": EVENT_CARD_PLAYED,
+            "card": card,
+            "param": None,
+            "player": "remote"
+        })
+
         match card.getPcarditem():
             case "heal":
                 heal = gValues[card.getPcarditem()][card.getItemPower()]
@@ -213,9 +215,14 @@ class GameState:
             case "card_draw":
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
-                    card_recv = Card(0, "", "", "")
+                    request_info = self.NetworkManager.request({
+                        "event": gconstants.EVENT_REQUEST_CARD,
+                        "param": None,
+                        "player": "remote"
+                    }, 120, "rpc_request", False)
+                    card_recv: Card = request_info["card"]
                     # should be card received from network module
-                    self.local_player.hand.append(card_recv)                                                        
+                    self.local_player.hand.append(card_recv)
             case "damage":
                 damage = gValues[card.getPcarditem()][card.getItemPower()]
                 self.remote_player.takeDamage(damage)
