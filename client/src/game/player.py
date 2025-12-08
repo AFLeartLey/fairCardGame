@@ -1,7 +1,7 @@
 from typing import Optional
 
-import client.src.game.constants as gconstants
-from client.src.game.card import Card
+import src.game.constants as gconstants
+from src.game.card import Card
 
 
 class Player:

@@ -1,9 +1,9 @@
 from random import choice
-from client.src.game.card import Card
-from client.src.game.player import Player
-from client.src.network.core import Network
-from client.src.game.constants import CARD_ITEM_VALUES as gValues, EVENT_CARD_PLAYED
-import client.src.game.constants as gconstants
+from src.game.card import Card
+from src.game.player import Player
+from src.network.core import Network
+from src.game.constants import CARD_ITEM_VALUES as gValues, EVENT_CARD_PLAYED
+import src.game.constants as gconstants
 
 class GameState:
     def __init__(
@@ -14,6 +14,7 @@ class GameState:
     ):
         self.local_player = local_player
         self.remote_player = remote_player
+        
 
     
     # -------------- Getter Methods -----------------

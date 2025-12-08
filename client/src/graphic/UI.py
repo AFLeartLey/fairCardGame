@@ -13,10 +13,10 @@ import sys
 # ----------------------------------------------------
 
 # 设置 TCL_LIBRARY 环境变量
-os.environ['TCL_LIBRARY'] = r'D:\PYTHON\Python\tcl\tcl8.6'
+#os.environ['TCL_LIBRARY'] = r'D:\PYTHON\Python\tcl\tcl8.6'
 
 # 设置 TK_LIBRARY 环境变量 (虽然不总是必需，但以防万一)
-os.environ['TK_LIBRARY'] = r'D:\PYTHON\Python\tcl\tk8.6'
+#os.environ['TK_LIBRARY'] = r'D:\PYTHON\Python\tcl\tk8.6'
 
 # ----------------------------------------------------
 # 导入 tkinter（现在应该能找到依赖文件了）
