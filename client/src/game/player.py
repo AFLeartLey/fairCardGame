@@ -1,5 +1,3 @@
-from typing import Optional
-
 import src.game.constants as gconstants
 from src.game.card import Card
 
