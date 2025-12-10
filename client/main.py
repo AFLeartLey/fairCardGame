@@ -8,6 +8,7 @@ def main():
     localPlayer, remotePlayer = Player(), Player()
     gs = GameState(local_player= localPlayer, remote_player=remotePlayer, NetworkManager=Network())
     app = MainApp()
+    app.setState(gs)
     app.mainloop()
 
 if __name__ == "__main__":

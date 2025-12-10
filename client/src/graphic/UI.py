@@ -2,32 +2,11 @@ import tkinter as tk
 from tkinter import messagebox
 import os
 import sys
-# 放在所有 tkinter 或相关库的导入之前！
 
-# ----------------------------------------------------
-# ** 重要步骤：手动设置 Tcl/Tk 路径 **
-#
-# 根据你在步骤 1 确认的路径进行修改。
-# 假设你的 Tcl 库文件在 D:\PYTHON\Python\Lib\tcl8.6
-# 假设你的 Tk 库文件在 D:\PYTHON\Python\Lib\tk8.6
-# ----------------------------------------------------
-
-# 设置 TCL_LIBRARY 环境变量
-#os.environ['TCL_LIBRARY'] = r'D:\PYTHON\Python\tcl\tcl8.6'
-
-# 设置 TK_LIBRARY 环境变量 (虽然不总是必需，但以防万一)
-#os.environ['TK_LIBRARY'] = r'D:\PYTHON\Python\tcl\tk8.6'
-
-# ----------------------------------------------------
-# 导入 tkinter（现在应该能找到依赖文件了）
 import tkinter as tk
 from tkinter import messagebox
-# ... 你的其他代码继续 ...
-# 假设的常量，你需要根据实际游戏逻辑调整
-PLAYER_HAND_SIZE = 5
-MAX_COST = 10
 
-
+from src.game.process import GameState
 
 # 以下为各个界面的定义
 class StartPage(tk.Frame):
@@ -146,12 +125,12 @@ class GamePage(tk.Frame):
         # 更新己方状态
         self.self_hp_var.set(f"己方生命值: {player_data['hp']}")
         self.self_hand_var.set(f"己方手牌数: {player_data['hand_count']}")
-        self.self_cost_var.set(f"己方Cost: {player_data['cost']}/{MAX_COST}")
+        self.self_cost_var.set(f"己方Cost: {player_data['cost']}")
 
         # 更新对方状态
         self.opp_hp_var.set(f"对方生命值: {opponent_data['hp']}")
         self.opp_hand_var.set(f"对方手牌数: {opponent_data['hand_count']}")
-        self.opp_cost_var.set(f"对方Cost: {opponent_data['cost']}/{MAX_COST}")
+        self.opp_cost_var.set(f"对方Cost: {opponent_data['cost']}")
 
         # 更新己方手牌显示
         self.update_hand_display(player_data['hand_cards'])
@@ -197,16 +176,27 @@ class GamePage(tk.Frame):
                 else:
                     btn.config(relief=tk.RAISED, bg="SystemButtonFace")
 
-    def play_card(self, index):
-        """执行打牌操作（发送数据到后端）"""
-        card_name = self.controller.game_state['player_status']['self']['hand_cards'][index]
-        # **这里需要发送打出这张牌的网络数据包**
-        messagebox.showinfo("出牌", f"打出了: {card_name}")
+    def play_card(self, index: int):
+        """执行打牌操作 -> 调用 GameState.playCard，并刷新 UI。"""
+        gs: GameState = self.controller.game_state
+        if gs is None:
+            messagebox.showerror("错误", "GameState 未初始化")
+            return
+
+        success = gs.playCard(index)
+        if not success:
+            messagebox.showwarning("出牌失败", "该牌不可出（费用不足或索引无效）")
+            return
+
+        # 出牌成功，刷新 UI
+        ui_state = gs.get_ui_state()
+        self.StatusUpdate(ui_state)
 
         # 重置选择状态并清除选中颜色
         self.selected_card_index = None
         for btn in self.card_buttons:
             btn.config(relief=tk.RAISED, bg="SystemButtonFace")
+
 
     def end_turn_click(self):
         """点击“结束回合”按钮"""
@@ -263,18 +253,13 @@ class GamePage(tk.Frame):
         self.selected_draw_index = None
 
     # --- 通用API：实现抽牌功能（由后端调用） ---
-    def DrawACard(self, num_cards, card_data_list):
-        """
-        从后端数据包中解析抽牌信息，并更新手牌显示。
-        :param num_cards: 抽牌数量
-        :param card_data_list: 抽到的牌的数据包列表
-        """
-        # 假设抽牌逻辑已经在后端处理，这里只更新UI
-        self.controller.game_state['player_status']['self']['hand_cards'].extend(card_data_list)
-        self.controller.game_state['player_status']['self']['hand_count'] += num_cards
+    def DrawACard(self):
+        gs: GameState = self.controller.game_state
+        if gs is None:
+            return
+        ui_state = gs.get_ui_state()
+        self.StatusUpdate(ui_state)
 
-        # 重新调用 StatusUpdate 来刷新 UI
-        self.StatusUpdate(self.controller.game_state)
 
 
 class EndPage(tk.Frame):
@@ -312,73 +297,140 @@ class EndPage(tk.Frame):
         self.controller.show_frame("StartPage")
         self.controller.frames["StartPage"].update_room_status("未连接")
 
+# UI.py
+
 class MainApp(tk.Tk):
     """主应用窗口，用于管理不同界面的切换"""
-
     def __init__(self):
         super().__init__()
         self.title("纸牌对战游戏")
         self.geometry("800x600")
 
-        # 容器 Frame，用于容纳当前显示的界面
+        self.game_state: GameState | None = None  # 由 main.py 注入
+
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
         self.frames = {}
-        # 初始化所有界面
         for F in (StartPage, GamePage, EndPage):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame("StartPage")  # 默认显示开始界面
+        self.show_frame("StartPage")
 
-        # 假设存储游戏状态
-        self.game_state = {
-            "is_host": False,
-            "ip": "",
-            "port": "",
-            "player_status": {
-                "self": {"hp": 30, "hand_count": 5, "cost": 3, "hand_cards": ["Card A", "Card B", "Card C"]},
-                "opponent": {"hp": 30, "hand_count": 5, "cost": 3}
-            }
-        }
+        self.game_started = False
+        self.start_check_timer()
 
-    def show_frame(self, page_name):
-        """显示指定名称的界面"""
+    def start_check_timer(self):
+        """定期检查游戏是否应该开始（用于客户端）"""
+        if self.game_started and self.game_state:
+            # 游戏应该开始了
+            self._do_start_game()
+            self.game_started = False
+            return
+            
+            # 每 100ms 检查一次
+        self.after(100, self.start_check_timer)
+
+    def setState(self, game_state: GameState):
+        """绑定网络回调到 UI 更新"""
+        self.game_state = game_state
+
+        self.game_state.on_game_start_callback = self._on_game_start_from_network
+
+        if self.game_state.NetworkManager:
+            self.game_state.NetworkManager.on_connected = self._on_network_connected        
+            self.game_state.NetworkManager.on_peer_connected = self._on_peer_connected
+
+    def _on_game_start_from_network(self):
+        """当收到网络游戏开始消息时调用"""
+        print("[UI] 收到网络游戏开始通知")
+        # 在主线程中安全地切换
+        self.after(0, self._do_start_game)
+
+    def _on_network_connected(self):
+        """网络连接成功时"""
+        # 在主线程安全地更新 UI
+        self.after(0, self._update_ui_after_connected)
+
+    def _on_peer_connected(self, peer_count: int):
+        """当有客户端连接时（主机端调用）"""
+        print(f"[UI] 客户端连接，当前连接数: {peer_count}")
+        self.after(0, lambda: self._update_ui_peer_connected(peer_count))
+
+    def _update_ui_peer_connected(self, peer_count: int):
+        """更新 UI 显示客户端已连接"""
+        start_page = self.frames["StartPage"]
+        start_page.update_room_status(
+            "✅ 客户端已连接，准备开始游戏！",
+            enable_start=True  # 启用"开始游戏"按钮
+        )
+
+
+    def _update_ui_after_connected(self):
+        """更新 StartPage，允许开始游戏"""
+        start_page = self.frames["StartPage"]
+        start_page.update_room_status(
+            "✅ 已连接，准备开始！",
+            enable_start=True  # 启用"开始游戏"按钮
+        )
+
+    def show_frame(self, page_name: str):
         frame = self.frames[page_name]
         frame.tkraise()
 
-    # **重要：将网络/游戏逻辑放在这里或单独的类中，并通过这些方法与UI交互**
-    def connect_or_create(self, ip, port, action):
-        """处理创建/加入房间的逻辑"""
-        self.game_state['ip'] = ip
-        self.game_state['port'] = port
-        self.game_state['is_host'] = (action == "create")
+    def connect_or_create(self, ip, port, action: str):
+        """处理创建/加入房间的逻辑，真正调用 GameState.initNetwork。"""
+        if self.game_state is None:
+            messagebox.showerror("错误", "GameState 尚未初始化")
+            return
 
-        # **这里需要添加你的网络连接代码（socket.connect/socket.bind等）**
+        is_host = (action == "create")
+        try:
+            self.game_state.initNetwork(is_host, ip, int(port))
+        except Exception as e:
+            messagebox.showerror("连接失败", str(e))
+            return
 
-        messagebox.showinfo("连接状态", f"尝试 {action} 房间 ({ip}:{port})...")
+        start_page: StartPage = self.frames["StartPage"]
+        if is_host:
+            start_page.update_room_status("房主已创建房间，等待玩家加入", enable_start=True)
+        else:
+            # 客户端通常等待房主开始游戏
+            start_page.update_room_status("已加入房间，等待房主开始", enable_start=False)
 
-        # 假设连接成功，并更新开始界面的房间状态
-        start_page = self.frames["StartPage"]
-        start_page.update_room_status("等待另一名玩家...")
-
-        # 假设两名玩家加入后
-        # self.show_frame("GamePage")
-        pass
+    def _do_start_game(self):
+        """【提取为公共方法】实际执行游戏开始"""
+        self.show_frame("GamePage")
+        game_page: GamePage = self.frames["GamePage"]
+        ui_state = self.game_state.get_ui_state()
+        game_page.StatusUpdate(ui_state)
+        game_page.DrawTurnStart()
 
     def start_game(self):
-        """从开始界面点击“开始游戏”"""
-        # 启动游戏逻辑...
-        self.show_frame("GamePage")
-        game_page = self.frames["GamePage"]
-        # 初始化游戏界面的状态显示
-        game_page.StatusUpdate(self.game_state)
-        game_page.DrawTurnStart()
+        """从开始界面点击“开始游戏”."""
+        if self.game_state is None:
+            messagebox.showerror("错误", "GameState 尚未初始化")
+            return
+        
+        if not self.game_state.NetworkManager.is_connected:
+            messagebox.showwarning("连接未完成", "请先连接到房间")
+            return
+        
+        if self.game_state.NetworkManager.is_host:
+            print("[Host] 发送游戏开始通知...")
+            self.game_state.NetworkManager.send({
+                "type": "game_start",
+                "message": "主机已开始游戏"
+            })
+
+        # 切到游戏界面
+        self._do_start_game()
+
 
 
 # 启动应用程序

@@ -14,7 +14,9 @@ class GameState:
     ):
         self.local_player = local_player
         self.remote_player = remote_player
-        
+        self.NetworkManager = NetworkManager        
+        self.on_game_start_callback = None
+
 
     
     # -------------- Getter Methods -----------------
@@ -86,8 +88,12 @@ class GameState:
         try:                            
             if is_host:
                 self.NetworkManager.start()
+                self.NetworkManager.on_message = self.handle_network_message
+                print("服务器已启动，等待连接...")
             else:
                 self.NetworkManager.connect(ip)
+                self.NetworkManager.on_message = self.handle_network_message
+                print("已连接到服务器")
         except Exception as e:
             print(f"初始化失败: {e}")
 
@@ -110,6 +116,30 @@ class GameState:
         """
         self.NetworkManager.send(data)
 
+    def handle_network_message(self, msg: dict) -> None:
+        """处理来自网络的消息"""
+        print(f"[GameState] 收到网络消息: {msg}")
+        
+        msg_type = msg.get("type")  # ✅ 修正: 应该用 "type" 而不是 "event"
+        
+        if msg_type == gconstants.EVENT_GAME_START:
+            print("[GameState] ✅ 客户端收到游戏开始通知")
+            if self.on_game_start_callback:
+                self.on_game_start_callback()
+        
+        elif msg_type == EVENT_CARD_PLAYED:
+            print("[GameState] 收到对手出牌消息")
+            self.parseRemotePlayedCard(msg.get("card"))
+        
+        elif msg_type == gconstants.EVENT_TURN_END:
+            print("[GameState] 收到对手回合结束消息")
+            # 处理回合结束逻辑
+            pass
+    
+        else:
+            print(f"[GameState] 未处理的消息类型: {msg_type}")
+
+
     # ------------- Gameplay Methods -----------------
     # ------------------------------------------------
 
@@ -128,6 +158,28 @@ class GameState:
             return "remote"
         else:
             return None
+        
+    def _card_to_str(self, card: Card) -> str:
+        """给 UI 用的卡牌展示文字，可按你自己喜好调整。"""
+        return f"{card.getPcarditem()} | {card.getNcarditem()} (Lv{card.getItemPower()})"
+
+    def get_ui_state(self) -> dict:
+        """返回给 UI 的完整状态快照。"""
+        return {
+            "player_status": {
+                "self": {
+                    "hp": self.local_player.health,
+                    "hand_count": len(self.local_player.hand),
+                    "cost": self.local_player.cost,
+                    "hand_cards": [self._card_to_str(c) for c in self.local_player.hand],
+                },
+                "opponent": {
+                    "hp": self.remote_player.health,
+                    "hand_count": len(self.remote_player.hand),
+                    "cost": self.remote_player.cost,
+                },
+            }
+        }
 
     # ------------ Player Action Methods -------------
     # ------------------------------------------------
@@ -203,7 +255,7 @@ class GameState:
 
         
         self.NetworkManager.send({
-            "event": EVENT_CARD_PLAYED,
+            "type": EVENT_CARD_PLAYED,
             "card": card,
             "param": None,
             "player": "remote"
@@ -217,7 +269,7 @@ class GameState:
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
                     request_info = self.NetworkManager.request({
-                        "event": gconstants.EVENT_REQUEST_CARD,
+                    "type": gconstants.EVENT_REQUEST_CARD,
                         "param": None,
                         "player": "remote"
                     }, 120, "rpc_request", False)
@@ -284,7 +336,7 @@ class GameState:
                     choice_card: Card = card_list[0] # = ui.drawCardSelection(card_list)
                     self.remote_player.hand.append(choice_card)
                     self.NetworkManager.send({
-                        "event": gconstants.EVENT_CARD_DRAWN,
+                        "type": gconstants.EVENT_CARD_DRAWN,
                         "card": choice_card,
                         "param": None,
                         "player": "local"
@@ -322,7 +374,7 @@ class GameState:
         choice_card: Card = card_list[0] # = ui.drawCardSelection(card_list)
 
         self.NetworkManager.send({
-            "event": gconstants.EVENT_TURN_END,
+            "type": gconstants.EVENT_TURN_END,
             "card": choice_card,
             "param": None,
             "player": "remote"

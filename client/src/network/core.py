@@ -96,6 +96,11 @@ class Network:
         self._rpc_lock = threading.Lock()
         self._default_timeout = 5.0
 
+        self.on_connected: Optional[Callable[[], None]] = None
+        self.on_peer_connected: Optional[Callable[[int], None]] = None
+        self.on_disconnected: Optional[Callable[[], None]] = None
+        self.is_connected = False
+
         # Client keeps reference to server socket for heartbeat
         self._server_socket: Optional[socket.socket] = None
 
@@ -133,6 +138,8 @@ class Network:
             raise NetError("Host cannot connect()")
         self.host_ip = target_ip
         self._start_client()
+
+    
 
     def close(self) -> None:
         """
@@ -369,6 +376,10 @@ class Network:
         self._hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self._hb_thread.start()
 
+        self.is_connected = True
+        if self.on_connected:
+            self.on_connected()
+
     # --------------------------------------------------------------------- #
     #  Private – Client initialisation
     # --------------------------------------------------------------------- #
@@ -394,22 +405,33 @@ class Network:
         self._hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self._hb_thread.start()
 
+        self.is_connected = True
+        if self.on_connected:
+            self.on_connected()
+
     # --------------------------------------------------------------------- #
     #  Private – Host connection acceptor
     # --------------------------------------------------------------------- #
     def _accept_loop(self) -> None:
-        """Run in daemon thread – accept new clients."""
+        """Run in daemon thread – accept new clients."""    
         assert self.is_host
         while self._running:
             try:
                 conn, addr = self._main_sock.accept()
                 self._peers.append(conn)
                 self._last_seen[conn] = time.time()
+                
+                # 【新增】通知有客户端连接了
+                print(f"✅ 客户端已连接: {addr}")
+                if hasattr(self, 'on_peer_connected') and self.on_peer_connected:
+                    self.on_peer_connected(len(self._peers))  # 传入客户端数量
+                
                 threading.Thread(
                     target=self._recv_loop, args=(conn, False), daemon=True
                 ).start()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"❌ 接受客户端连接时出错: {e}")
+
 
     # --------------------------------------------------------------------- #
     #  Private – remove dead peer (Host only)
@@ -427,38 +449,61 @@ class Network:
     # --------------------------------------------------------------------- #
     #  Private – receiver loop (Host & Client)
     # --------------------------------------------------------------------- #
+    
     def _recv_loop(self, sock: socket.socket, is_client_me: bool) -> None:
         """Parse newline-delimited JSON and dispatch messages."""
         buffer = ""
+        peer_info = "Client" if is_client_me else f"Peer {sock.getpeername() if sock else '?'}"
+        
         while self._running:
             try:
                 data = sock.recv(4096).decode("utf-8")
-                if not data:                       # peer shutdown
+                if not data: # peer shutdown
+                    print(f"[Network] {peer_info} 断开连接")
                     break
+                
                 buffer += data
                 while "\n" in buffer:
                     line, buffer = buffer.split("\n", 1)
                     msg = unpack(line)
-
+                    
+                    # 【新增】打印接收到的数据包
+                    msg_type = msg.get("type", "unknown")
+                    if msg_type in ["ping", "pong"]:
+                        # 心跳包用更简洁的格式
+                        print(f"[Network RX] {peer_info} <- HEARTBEAT({msg_type})")
+                    else:
+                        # 其他数据包打印完整信息
+                        print(f"[Network RX] {peer_info} <- {msg}")
+                    
                     # RPC messages are processed first
                     if self._handle_rpc_message(msg, sock):
                         continue
-
+                    
                     # Heart-beat packets – handled internally
                     if msg.get("type") == "ping":
                         self._last_seen[sock] = time.time()
                         continue
+                    
                     if msg.get("type") == "pong":
                         self._last_seen[sock] = time.time()
                         continue
-
+                    
                     # Business packet – forward to application
+                    # 【新增】确保 on_message 回调被执行
                     if self.on_message:
+                        print(f"[Network] 调用 on_message 回调，消息类型: {msg_type}")
                         self.on_message(msg)
-            except Exception:
+                    else:
+                        print(f"[Network] ⚠️  警告: on_message 回调未设置!")
+            
+            except Exception as e:
+                print(f"[Network] {peer_info} 接收错误: {e}")
                 break
-
+        
         # Peer lost – clean up
+        print(f"[Network] {peer_info} 连接已关闭，进行清理...")
+        
         if is_client_me:
             self._running = False
             # Cancel pending RPCs on client side
@@ -467,10 +512,12 @@ class Network:
                     if not future.done():
                         future.set_exception(NetError("Connection lost while waiting for response"))
                 self._pending_requests.clear()
+            
             if self.on_disconnect:
                 self.on_disconnect()
         else:
             self._remove_peer(sock)
+
 
     # --------------------------------------------------------------------- #
     #  Private – RPC internals
