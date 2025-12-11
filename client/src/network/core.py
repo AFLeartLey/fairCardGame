@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Enhanced Host-Client Hybrid Network Layer – Bidirectional RPC Support
 -------------------------------------------------------------------
@@ -421,8 +420,7 @@ class Network:
                 self._peers.append(conn)
                 self._last_seen[conn] = time.time()
                 
-                # 【新增】通知有客户端连接了
-                print(f"✅ 客户端已连接: {addr}")
+                print(f"客户端已连接: {addr}")
                 if hasattr(self, 'on_peer_connected') and self.on_peer_connected:
                     self.on_peer_connected(len(self._peers))  # 传入客户端数量
                 
@@ -430,7 +428,7 @@ class Network:
                     target=self._recv_loop, args=(conn, False), daemon=True
                 ).start()
             except Exception as e:
-                print(f"❌ 接受客户端连接时出错: {e}")
+                print(f"接受客户端连接时出错: {e}")
 
 
     # --------------------------------------------------------------------- #
@@ -467,13 +465,10 @@ class Network:
                     line, buffer = buffer.split("\n", 1)
                     msg = unpack(line)
                     
-                    # 【新增】打印接收到的数据包
                     msg_type = msg.get("type", "unknown")
                     if msg_type in ["ping", "pong"]:
-                        # 心跳包用更简洁的格式
                         print(f"[Network RX] {peer_info} <- HEARTBEAT({msg_type})")
                     else:
-                        # 其他数据包打印完整信息
                         print(f"[Network RX] {peer_info} <- {msg}")
                     
                     # RPC messages are processed first
@@ -490,12 +485,11 @@ class Network:
                         continue
                     
                     # Business packet – forward to application
-                    # 【新增】确保 on_message 回调被执行
                     if self.on_message:
                         print(f"[Network] 调用 on_message 回调，消息类型: {msg_type}")
                         self.on_message(msg)
                     else:
-                        print(f"[Network] ⚠️  警告: on_message 回调未设置!")
+                        print(f"[Network] 警告: on_message 回调未设置!")
             
             except Exception as e:
                 print(f"[Network] {peer_info} 接收错误: {e}")
