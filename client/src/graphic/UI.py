@@ -8,13 +8,14 @@ from tkinter import messagebox
 
 from src.game.process import GameState
 
+
 # 以下为各个界面的定义
 class StartPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
 
-        tk.Label(self, text="🌟 欢迎来到纸牌对战 🌟", font=('Arial', 24)).pack(pady=20)
+        tk.Label(self, text="🌟 欢迎来到纸牌对战 🌟", font=("Arial", 24)).pack(pady=20)
 
         # IP/Port 输入
         input_frame = tk.Frame(self)
@@ -34,24 +35,38 @@ class StartPage(tk.Frame):
         action_frame = tk.Frame(self)
         action_frame.pack(pady=10)
 
-        tk.Button(action_frame, text="创建房间",
-                  command=lambda: self.controller.connect_or_create(self.ip_entry.get(), self.port_entry.get(),
-                                                                    "create")).pack(side="left", padx=10)
-        tk.Button(action_frame, text="加入房间",
-                  command=lambda: self.controller.connect_or_create(self.ip_entry.get(), self.port_entry.get(),
-                                                                    "join")).pack(side="left", padx=10)
+        tk.Button(
+            action_frame,
+            text="创建房间",
+            command=lambda: self.controller.connect_or_create(
+                self.ip_entry.get(), self.port_entry.get(), "create"
+            ),
+        ).pack(side="left", padx=10)
+        tk.Button(
+            action_frame,
+            text="加入房间",
+            command=lambda: self.controller.connect_or_create(
+                self.ip_entry.get(), self.port_entry.get(), "join"
+            ),
+        ).pack(side="left", padx=10)
 
         # 房间状态显示
         self.status_var = tk.StringVar(value="房间状态：未连接")
-        self.status_label = tk.Label(self, textvariable=self.status_var, font=('Arial', 14))
+        self.status_label = tk.Label(
+            self, textvariable=self.status_var, font=("Arial", 14)
+        )
         self.status_label.pack(pady=15)
 
         # 开始游戏按钮 (初始禁用)
-        self.start_button = tk.Button(self, text="开始游戏",
-                                      command=self.controller.start_game,
-                                      state=tk.DISABLED,
-                                      font=('Arial', 18, 'bold'),
-                                      fg="white", bg="green")
+        self.start_button = tk.Button(
+            self,
+            text="开始游戏",
+            command=self.controller.start_game,
+            state=tk.DISABLED,
+            font=("Arial", 18, "bold"),
+            fg="white",
+            bg="green",
+        )
         self.start_button.pack(pady=30)
 
     def update_room_status(self, status_message, enable_start=False):
@@ -69,6 +84,7 @@ class GamePage(tk.Frame):
         self.controller = controller
         self.selected_card_index = None  # 记录玩家选择打出的牌索引
         self.selected_draw_index = None  # 记录玩家选择给对方的牌索引
+        self.turn_end_callback = None  # 结束回合的回调函数
 
         # --- 1. 顶部：对方状态 ---
         self.opp_status_frame = tk.Frame(self)
@@ -78,9 +94,15 @@ class GamePage(tk.Frame):
         self.opp_hand_var = tk.StringVar(value="对方手牌数: --")
         self.opp_cost_var = tk.StringVar(value="对方Cost: --")
 
-        tk.Label(self.opp_status_frame, textvariable=self.opp_hp_var).pack(side="left", padx=20)
-        tk.Label(self.opp_status_frame, textvariable=self.opp_hand_var).pack(side="left", padx=20)
-        tk.Label(self.opp_status_frame, textvariable=self.opp_cost_var).pack(side="left", padx=20)
+        tk.Label(self.opp_status_frame, textvariable=self.opp_hp_var).pack(
+            side="left", padx=20
+        )
+        tk.Label(self.opp_status_frame, textvariable=self.opp_hand_var).pack(
+            side="left", padx=20
+        )
+        tk.Label(self.opp_status_frame, textvariable=self.opp_cost_var).pack(
+            side="left", padx=20
+        )
 
         # --- 2. 中部：游戏区域 & 回合控制 ---
         mid_frame = tk.Frame(self)
@@ -88,13 +110,23 @@ class GamePage(tk.Frame):
 
         # 2a. 提示/回合画面
         self.turn_message_var = tk.StringVar(value="")
-        self.turn_message_label = tk.Label(mid_frame, textvariable=self.turn_message_var, font=('Arial', 36, 'bold'),
-                                           fg='red')
+        self.turn_message_label = tk.Label(
+            mid_frame,
+            textvariable=self.turn_message_var,
+            font=("Arial", 36, "bold"),
+            fg="red",
+        )
         self.turn_message_label.pack(pady=50)  # 最初是空的，回合开始/结束时显示
 
         # 2b. 结束回合按钮
-        tk.Button(mid_frame, text="➡️ 结束回合", command=self.end_turn_click,
-                  font=('Arial', 16), bg="red", fg="white").pack(pady=20)
+        tk.Button(
+            mid_frame,
+            text="➡️ 结束回合",
+            command=self.end_turn_click,
+            font=("Arial", 16),
+            bg="red",
+            fg="white",
+        ).pack(pady=20)
         self.turn_end_call = None
 
         # --- 3. 底部：己方状态 & 手牌 ---
@@ -105,9 +137,15 @@ class GamePage(tk.Frame):
         self.self_hand_var = tk.StringVar(value="己方手牌数: --")
         self.self_cost_var = tk.StringVar(value="己方Cost: --")
 
-        tk.Label(self.self_status_frame, textvariable=self.self_hp_var).pack(side="left", padx=20)
-        tk.Label(self.self_status_frame, textvariable=self.self_hand_var).pack(side="left", padx=20)
-        tk.Label(self.self_status_frame, textvariable=self.self_cost_var).pack(side="left", padx=20)
+        tk.Label(self.self_status_frame, textvariable=self.self_hp_var).pack(
+            side="left", padx=20
+        )
+        tk.Label(self.self_status_frame, textvariable=self.self_hand_var).pack(
+            side="left", padx=20
+        )
+        tk.Label(self.self_status_frame, textvariable=self.self_cost_var).pack(
+            side="left", padx=20
+        )
 
         # 己方手牌区域
         self.hand_frame = tk.Frame(self)
@@ -120,8 +158,8 @@ class GamePage(tk.Frame):
         根据game端传来的数据包，更新显示的双方状态。
         :param game_data: 包含所有游戏状态的数据结构
         """
-        player_data = game_data['player_status']['self']
-        opponent_data = game_data['player_status']['opponent']
+        player_data = game_data["player_status"]["self"]
+        opponent_data = game_data["player_status"]["opponent"]
 
         # 更新己方状态
         self.self_hp_var.set(f"己方生命值: {player_data['hp']}")
@@ -134,7 +172,7 @@ class GamePage(tk.Frame):
         self.opp_cost_var.set(f"对方Cost: {opponent_data['cost']}")
 
         # 更新己方手牌显示
-        self.update_hand_display(player_data['hand_cards'])
+        self.update_hand_display(player_data["hand_cards"])
 
     def update_hand_display(self, hand_cards):
         """重新绘制己方手牌按钮"""
@@ -145,9 +183,14 @@ class GamePage(tk.Frame):
 
         # 绘制新的按钮
         for i, card_name in enumerate(hand_cards):
-            btn = tk.Button(self.hand_frame, text=card_name,
-                            command=lambda idx=i: self.card_click(idx),
-                            width=10, height=5, relief=tk.RAISED)
+            btn = tk.Button(
+                self.hand_frame,
+                text=card_name,
+                command=lambda idx=i: self.card_click(idx),
+                width=10,
+                height=5,
+                relief=tk.RAISED,
+            )
             btn.pack(side="left", padx=5)
             self.card_buttons.append(btn)
 
@@ -161,6 +204,191 @@ class GamePage(tk.Frame):
         """在UI界面绘出回合结束画面"""
         self.turn_message_var.set("回合结束!")
         self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
+
+    def draw_card_selection(self, three_cards: list) -> object:
+        """
+        【新方法】显示卡牌选择弹窗，并返回用户选择的卡牌
+        
+        这个方法使用 wait_window() 进行同步等待，确保调用者能获取到用户的选择结果
+        
+        :param three_cards: 包含 3 个 Card 对象的列表
+        :return: 用户选择的 Card 对象，如果取消则返回 None
+        """
+        print(f"[UI] 显示卡牌选择窗口，共 {len(three_cards)} 张卡牌")
+        
+        # 【关键】初始化选择结果容器
+        self.selected_card = None
+        
+        # 创建模态窗口
+        self.draw_window = tk.Toplevel(self)
+        self.draw_window.title("选择一张卡牌")
+        self.draw_window.geometry("500x300")
+        self.draw_window.resizable(False, False)
+        
+        # 【美化】添加标题
+        title_label = tk.Label(self.draw_window, text="请选择一张卡牌递给对手：", 
+                            font=('Arial', 14, 'bold'))
+        title_label.pack(pady=15)
+        
+        # 【改进】卡牌显示框架
+        card_display_frame = tk.LabelFrame(self.draw_window, text="可选卡牌", 
+                                        font=('Arial', 12), padx=10, pady=10)
+        card_display_frame.pack(pady=10, padx=10, fill="both", expand=True)
+        
+        self.draw_choice_buttons = []
+        
+        # 【关键】为每张卡牌创建选择按钮
+        for i, card in enumerate(three_cards):
+            card_str = self._format_card_for_display(card)
+            
+            btn = tk.Button(
+                card_display_frame, 
+                text=card_str,
+                command=lambda idx=i, c=card: self._on_card_selected(idx, c),
+                width=20, 
+                height=4,
+                relief=tk.RAISED,
+                font=('Arial', 10),
+                bg="lightblue",
+                activebackground="lightyellow"
+            )
+            btn.pack(side="left", padx=5, pady=5)
+            self.draw_choice_buttons.append(btn)
+        
+        # 【新增】操作提示框架
+        info_frame = tk.Frame(self.draw_window)
+        info_frame.pack(pady=10)
+
+    def draw_card_selection(self, three_cards: list) -> object:
+        """
+        【新方法】显示卡牌选择弹窗，并返回用户选择的卡牌
+        
+        这个方法使用 wait_window() 进行同步等待，确保调用者能获取到用户的选择结果
+        
+        :param three_cards: 包含 3 个 Card 对象的列表
+        :return: 用户选择的 Card 对象，如果取消则返回 None
+        """
+        print(f"[UI] 显示卡牌选择窗口，共 {len(three_cards)} 张卡牌")
+        
+        # 【关键】初始化选择结果容器
+        self.selected_card = None
+        
+        # 创建模态窗口
+        self.draw_window = tk.Toplevel(self)
+        self.draw_window.title("选择一张卡牌")
+        self.draw_window.geometry("500x300")
+        self.draw_window.resizable(False, False)
+        
+        # 【美化】添加标题
+        title_label = tk.Label(self.draw_window, text="请选择一张卡牌递给对手：", 
+                            font=('Arial', 14, 'bold'))
+        title_label.pack(pady=15)
+        
+        # 【改进】卡牌显示框架
+        card_display_frame = tk.LabelFrame(self.draw_window, text="可选卡牌", 
+                                        font=('Arial', 12), padx=10, pady=10)
+        card_display_frame.pack(pady=10, padx=10, fill="both", expand=True)
+        
+        self.draw_choice_buttons = []
+        
+        # 【关键】为每张卡牌创建选择按钮
+        for i, card in enumerate(three_cards):
+            card_str = self._format_card_for_display(card)
+            
+            btn = tk.Button(
+                card_display_frame, 
+                text=card_str,
+                command=lambda idx=i, c=card: self._on_card_selected(idx, c),
+                width=20, 
+                height=4,
+                relief=tk.RAISED,
+                font=('Arial', 10),
+                bg="lightblue",
+                activebackground="lightyellow"
+            )
+            btn.pack(side="left", padx=5, pady=5)
+            self.draw_choice_buttons.append(btn)
+        
+        # 【新增】操作提示框架
+        info_frame = tk.Frame(self.draw_window)
+        info_frame.pack(pady=10)
+        
+        tk.Label(info_frame, text="选中的卡牌会高亮显示，双击确认选择", 
+                font=('Arial', 9), fg="gray").pack()
+        
+        # 【关键】使窗口成为模态窗口
+        self.draw_window.transient(self.master)
+        self.draw_window.grab_set()
+        self.draw_window.focus_set()
+        
+        # 【关键】阻塞等待用户选择
+        # 这行代码会暂停 draw_card_selection 的执行
+        # 直到 self.draw_window 被 destroy()，才会继续执行
+        self.wait_window(self.draw_window)
+        
+        # 【关键返回值】用户选择完成后返回选中的卡牌
+        if self.selected_card is not None:
+            print(f"[UI] 用户选择了卡牌: {self._format_card_for_display(self.selected_card)}")
+            return self.selected_card
+        else:
+            print("[UI] ⚠️ 用户未完成选择，返回 None")
+            return None
+
+
+    def _format_card_for_display(self, card: object) -> str:
+        """
+        【辅助方法】将卡牌对象格式化为显示字符串
+        
+        :param card: Card 对象
+        :return: 格式化后的卡牌描述字符串
+        """
+        try:
+            if hasattr(card, 'getPcarditem') and hasattr(card, 'getNcarditem'):
+                return (f"正面: {card.getPcarditem()}\n"
+                    f"负面: {card.getNcarditem()}\n"
+                    f"等级: Lv{card.getItemPower()}")
+            else:
+                return str(card)
+        except Exception as e:
+            print(f"[UI] 格式化卡牌失败: {e}")
+            return str(card)
+
+
+    def _on_card_selected(self, index: int, card: object) -> None:
+        """
+        【回调方法】当玩家点击卡牌时调用
+        
+        :param index: 卡牌在列表中的索引
+        :param card: 被选中的 Card 对象
+        """
+        print(f"[UI] 玩家点击了第 {index} 张卡牌")
+        
+        # 【改进】高亮选中的按钮
+        for i, btn in enumerate(self.draw_choice_buttons):
+            if i == index:
+                btn.config(relief=tk.SUNKEN, bg="lightgreen", fg="white", 
+                        font=('Arial', 10, 'bold'))
+            else:
+                btn.config(relief=tk.RAISED, bg="lightblue", fg="black", 
+                        font=('Arial', 10))
+        
+        # 【关键】保存用户的选择
+        self.selected_card = card
+        
+        # 【新增】显示确认对话框
+        card_str = self._format_card_for_display(card)
+        if messagebox.askyesno("确认选择", f"✅ 确认选择这张卡牌吗？\n\n{card_str}"):
+            print("[UI] 用户确认选择")
+            # 【关键】关闭窗口，这会解除 wait_window() 的阻塞
+            self.draw_window.destroy()
+        else:
+            print("[UI] 用户取消选择，重新选择")
+            # 重置选择，允许用户重新选择
+            self.selected_card = None
+            for btn in self.draw_choice_buttons:
+                btn.config(relief=tk.RAISED, bg="lightblue", fg="black", 
+                        font=('Arial', 10))
+
 
     # --- 玩家出牌阶段 ---
     def card_click(self, index):
@@ -198,15 +426,28 @@ class GamePage(tk.Frame):
         for btn in self.card_buttons:
             btn.config(relief=tk.RAISED, bg="SystemButtonFace")
 
-
     def end_turn_click(self):
-        """点击“结束回合”按钮"""
-        # **这里需要通知后端回合结束**
-        self.DrawTurnEnd()
-        # 模拟后端发送抽牌数据包
-        self.turn_end_call()
+        """点击"结束回合"按钮 - 触发回合结束流程"""
+        gs: GameState = self.controller.game_state
+        if gs is None:
+            return
 
-        # --- 抽牌选择阶段 ---
+        print("[UI] 玩家点击了结束回合按钮")
+
+        # 【步骤 1】显示回合结束提示
+        self.DrawTurnEnd()
+
+        # 【步骤 2】禁用卡牌操作（玩家已结束回合）
+        gs.is_my_turn = False
+
+        # 【步骤 3】2秒后启动回合结束处理
+        # (给玩家看"回合结束"提示的时间)
+        if hasattr(self, 'turn_end_callback') and self.turn_end_callback:
+            print("[UI] 启动回合结束处理")
+            self.after(1000, self.turn_end_callback)
+        else:
+            print("[UI] ⚠️ 警告: turn_end_callback 未设置！")
+
 
     def show_draw_choice(self, three_cards_data):
         """
@@ -225,9 +466,12 @@ class GamePage(tk.Frame):
 
         self.draw_choice_buttons = []
         for i, card_name in enumerate(three_cards_data):
-            btn = tk.Button(card_choice_frame, text=card_name,
-                            command=lambda idx=i: self.draw_card_select(idx, three_cards_data),
-                            width=10)
+            btn = tk.Button(
+                card_choice_frame,
+                text=card_name,
+                command=lambda idx=i: self.draw_card_select(idx, three_cards_data),
+                width=10,
+            )
             btn.pack(side="left", padx=5)
             self.draw_choice_buttons.append(btn)
 
@@ -260,20 +504,27 @@ class GamePage(tk.Frame):
         ui_state = gs.get_ui_state()
         self.StatusUpdate(ui_state)
 
+
 class EndPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
 
         self.result_var = tk.StringVar(value="游戏结束...")
-        self.result_label = tk.Label(self, textvariable=self.result_var, font=('Arial', 48, 'bold'))
+        self.result_label = tk.Label(
+            self, textvariable=self.result_var, font=("Arial", 48, "bold")
+        )
         self.result_label.pack(pady=50)
 
         # 再来一局按钮
-        tk.Button(self, text="再来一局",
-                  command=self.restart_game,
-                  font=('Arial', 20),
-                  bg="blue", fg="white").pack(pady=30)
+        tk.Button(
+            self,
+            text="再来一局",
+            command=self.restart_game,
+            font=("Arial", 20),
+            bg="blue",
+            fg="white",
+        ).pack(pady=30)
 
     def GameOver(self, is_winner):
         """
@@ -295,10 +546,13 @@ class EndPage(tk.Frame):
         self.controller.show_frame("StartPage")
         self.controller.frames["StartPage"].update_room_status("未连接")
 
+
 # UI.py
+
 
 class MainApp(tk.Tk):
     """主应用窗口，用于管理不同界面的切换"""
+
     def __init__(self):
         super().__init__()
         self.title("纸牌对战游戏")
@@ -319,7 +573,7 @@ class MainApp(tk.Tk):
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("StartPage")
-        
+
         self.game_started = False
 
     def setState(self, game_state: GameState):
@@ -327,13 +581,16 @@ class MainApp(tk.Tk):
         self.game_state = game_state
 
         self.game_state.on_game_start_callback = self._on_game_start_from_network
-        self.game_state.ui_draw_card_selection_callback = self.frames["GamePage"].show_draw_choice
+        self.game_state.ui_draw_card_selection_callback = self.frames[
+            "GamePage"
+        ].draw_card_selection
 
         if self.game_state.NetworkManager:
-            self.game_state.NetworkManager.on_connected = self._on_network_connected        
+            self.game_state.NetworkManager.on_connected = self._on_network_connected
             self.game_state.NetworkManager.on_peer_connected = self._on_peer_connected
 
-        self.frames["GamePage"].turn_end_call = self.game_state.turnEnd
+        self.frames["GamePage"].turn_end_callback = self.game_state.turnEnd
+        self.game_state.ui_update = self.frames["GamePage"].StatusUpdate
 
     def _on_game_start_from_network(self):
         """当收到网络游戏开始消息时调用"""
@@ -355,17 +612,14 @@ class MainApp(tk.Tk):
         """更新 UI 显示客户端已连接"""
         start_page = self.frames["StartPage"]
         start_page.update_room_status(
-            "✅ 客户端已连接，准备开始游戏！",
-            enable_start=True  # 启用"开始游戏"按钮
+            "✅ 客户端已连接，准备开始游戏！", enable_start=True  # 启用"开始游戏"按钮
         )
-
 
     def _update_ui_after_connected(self):
         """更新 StartPage，允许开始游戏"""
         start_page = self.frames["StartPage"]
         start_page.update_room_status(
-            "✅ 已连接，准备开始！",
-            enable_start=True  # 启用"开始游戏"按钮
+            "✅ 已连接，准备开始！", enable_start=True  # 启用"开始游戏"按钮
         )
 
     def show_frame(self, page_name: str):
@@ -378,7 +632,7 @@ class MainApp(tk.Tk):
             messagebox.showerror("错误", "GameState 尚未初始化")
             return
 
-        is_host = (action == "create")
+        is_host = action == "create"
         try:
             self.game_state.initNetwork(is_host, ip, int(port))
         except Exception as e:
@@ -387,11 +641,15 @@ class MainApp(tk.Tk):
 
         start_page: StartPage = self.frames["StartPage"]
         if is_host:
-            start_page.update_room_status("房主已创建房间，等待玩家加入", enable_start=True)
+            start_page.update_room_status(
+                "房主已创建房间，等待玩家加入", enable_start=True
+            )
             self.game_state.is_my_turn = True  # 主机先手
         else:
             # 客户端通常等待房主开始游戏
-            start_page.update_room_status("已加入房间，等待房主开始", enable_start=False)
+            start_page.update_room_status(
+                "已加入房间，等待房主开始", enable_start=False
+            )
 
     def _do_start_game(self):
         """【提取为公共方法】实际执行游戏开始"""
@@ -400,7 +658,7 @@ class MainApp(tk.Tk):
         ui_state = self.game_state.get_ui_state()
         game_page.StatusUpdate(ui_state)
         if self.game_state.is_my_turn:
-            game_page.DrawTurnStart()   
+            game_page.DrawTurnStart()
         else:
             game_page.turn_message_var.set("等待对手回合...")
 
@@ -409,17 +667,16 @@ class MainApp(tk.Tk):
         if self.game_state is None:
             messagebox.showerror("错误", "GameState 尚未初始化")
             return
-        
+
         if not self.game_state.NetworkManager.is_connected:
             messagebox.showwarning("连接未完成", "请先连接到房间")
             return
-        
+
         if self.game_state.NetworkManager.is_host:
             print("[Host] 发送游戏开始通知...")
-            self.game_state.NetworkManager.send({
-                "type": "game_start",
-                "message": "主机已开始游戏"
-            })
+            self.game_state.NetworkManager.send(
+                {"type": "game_start", "message": "主机已开始游戏"}
+            )
 
         # 切到游戏界面
         self._do_start_game()
