@@ -95,6 +95,7 @@ class GamePage(tk.Frame):
         # 2b. 结束回合按钮
         tk.Button(mid_frame, text="➡️ 结束回合", command=self.end_turn_click,
                   font=('Arial', 16), bg="red", fg="white").pack(pady=20)
+        self.turn_end_call = None
 
         # --- 3. 底部：己方状态 & 手牌 ---
         self.self_status_frame = tk.Frame(self)
@@ -203,7 +204,7 @@ class GamePage(tk.Frame):
         # **这里需要通知后端回合结束**
         self.DrawTurnEnd()
         # 模拟后端发送抽牌数据包
-        self.after(2000, lambda: self.show_draw_choice(["Card X", "Card Y", "Card Z"]))
+        self.turn_end_call()
 
         # --- 抽牌选择阶段 ---
 
@@ -215,7 +216,7 @@ class GamePage(tk.Frame):
         # 弹出新窗口或在主界面上覆盖一个Frame
         self.draw_window = tk.Toplevel(self)
         self.draw_window.title("选择一张递给对手")
-        self.draw_window.geometry("400x200")
+        self.draw_window.geometry("400x400")
 
         tk.Label(self.draw_window, text="请选择一张牌放入对手牌堆:").pack(pady=10)
 
@@ -250,7 +251,6 @@ class GamePage(tk.Frame):
         messagebox.showinfo("递牌", f"选择将 {selected_card} 递给对手。")
 
         self.draw_window.destroy()
-        self.selected_draw_index = None
 
     # --- 通用API：实现抽牌功能（由后端调用） ---
     def DrawACard(self):
@@ -259,8 +259,6 @@ class GamePage(tk.Frame):
             return
         ui_state = gs.get_ui_state()
         self.StatusUpdate(ui_state)
-
-
 
 class EndPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -321,30 +319,21 @@ class MainApp(tk.Tk):
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("StartPage")
-
+        
         self.game_started = False
-        self.start_check_timer()
-
-    def start_check_timer(self):
-        """定期检查游戏是否应该开始（用于客户端）"""
-        if self.game_started and self.game_state:
-            # 游戏应该开始了
-            self._do_start_game()
-            self.game_started = False
-            return
-            
-            # 每 100ms 检查一次
-        self.after(100, self.start_check_timer)
 
     def setState(self, game_state: GameState):
         """绑定网络回调到 UI 更新"""
         self.game_state = game_state
 
         self.game_state.on_game_start_callback = self._on_game_start_from_network
+        self.game_state.ui_draw_card_selection_callback = self.frames["GamePage"].show_draw_choice
 
         if self.game_state.NetworkManager:
             self.game_state.NetworkManager.on_connected = self._on_network_connected        
             self.game_state.NetworkManager.on_peer_connected = self._on_peer_connected
+
+        self.frames["GamePage"].turn_end_call = self.game_state.turnEnd
 
     def _on_game_start_from_network(self):
         """当收到网络游戏开始消息时调用"""
@@ -399,6 +388,7 @@ class MainApp(tk.Tk):
         start_page: StartPage = self.frames["StartPage"]
         if is_host:
             start_page.update_room_status("房主已创建房间，等待玩家加入", enable_start=True)
+            self.game_state.is_my_turn = True  # 主机先手
         else:
             # 客户端通常等待房主开始游戏
             start_page.update_room_status("已加入房间，等待房主开始", enable_start=False)
@@ -409,7 +399,10 @@ class MainApp(tk.Tk):
         game_page: GamePage = self.frames["GamePage"]
         ui_state = self.game_state.get_ui_state()
         game_page.StatusUpdate(ui_state)
-        game_page.DrawTurnStart()
+        if self.game_state.is_my_turn:
+            game_page.DrawTurnStart()   
+        else:
+            game_page.turn_message_var.set("等待对手回合...")
 
     def start_game(self):
         """从开始界面点击“开始游戏”."""
@@ -430,7 +423,6 @@ class MainApp(tk.Tk):
 
         # 切到游戏界面
         self._do_start_game()
-
 
 
 # 启动应用程序

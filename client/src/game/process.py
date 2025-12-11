@@ -16,6 +16,8 @@ class GameState:
         self.remote_player = remote_player
         self.NetworkManager = NetworkManager        
         self.on_game_start_callback = None
+        self.is_my_turn = False
+        self.ui_draw_card_selection_callback = None
 
 
     
@@ -85,6 +87,7 @@ class GameState:
             None
         """
         self.NetworkManager = Network(is_host, ip, port)
+        self.is_my_turn = is_host  # 主机先手
         try:                            
             if is_host:
                 self.NetworkManager.start()
@@ -133,8 +136,14 @@ class GameState:
         
         elif msg_type == gconstants.EVENT_TURN_END:
             print("[GameState] 收到对手回合结束消息")
-            # 处理回合结束逻辑
-            pass
+            # 【新增】对手结束回合后，轮到本地玩家
+            self.is_my_turn = True
+            print("[GameState] 对手已结束回合，现在轮到本地玩家")
+
+        elif msg_type == gconstants.EVENT_CARD_DRAWN:
+            print("[GameState] 收到对手抽牌消息")
+            card: Card = msg.get("card")
+            self.local_player.hand.append(card)
     
         else:
             print(f"[GameState] 未处理的消息类型: {msg_type}")
@@ -269,7 +278,7 @@ class GameState:
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
                     request_info = self.NetworkManager.request({
-                    "type": gconstants.EVENT_REQUEST_CARD,
+                        "type": gconstants.EVENT_REQUEST_CARD,
                         "param": None,
                         "player": "remote"
                     }, 120, "rpc_request", False)
@@ -358,9 +367,8 @@ class GameState:
         Returns:
             None
         """
-
+        self.is_my_turn = False  # 结束本地玩家回合
         card_list = []
-        
         for _ in range(3):
             card_list.append(
                 Card(
@@ -369,20 +377,22 @@ class GameState:
                     choice(gconstants.NCARDITEMLIST),
                     gconstants.STATUS_CARD_NO_EFFECT
                 )
-            )
-            
-        choice_card: Card = card_list[0] # = ui.drawCardSelection(card_list)
+            )        
+        self.local_player.costRegen(2)  # Regenerate 2 cost at end of turn
+        self.ui_draw_card_selection_callback(card_list)
 
+    def sendTurnEnd(self, cardToSend) -> None:
+        """Send end-of-turn notification to the remote player.
+
+        Returns:
+            None
+        """        
+        # TBD : 从UI侧获取要递给对手的牌
         self.NetworkManager.send({
             "type": gconstants.EVENT_TURN_END,
-            "card": choice_card,
-            "param": None,
+            "card": None,
             "player": "remote"
-        })
-
-        self.local_player.costRegen(2)  # Regenerate 2 cost at end of turn
-        return
-    
+        })    
 
         
 
