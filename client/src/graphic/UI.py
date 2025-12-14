@@ -15,7 +15,7 @@ class StartPage(tk.Frame):
         super().__init__(parent)
         self.controller = controller
 
-        tk.Label(self, text="🌟 欢迎来到纸牌对战 🌟", font=("Arial", 24)).pack(pady=20)
+        tk.Label(self, text="🌟 欢迎来到 Project FairCard 🌟", font=("Arial", 24)).pack(pady=20)
 
         # IP/Port 输入
         input_frame = tk.Frame(self)
@@ -119,7 +119,7 @@ class GamePage(tk.Frame):
         self.turn_message_label.pack(pady=50)  # 最初是空的，回合开始/结束时显示
 
         # 2b. 结束回合按钮
-        tk.Button(
+        turn_end_button = tk.Button(
             mid_frame,
             text="➡️ 结束回合",
             command=self.end_turn_click,
@@ -198,6 +198,10 @@ class GamePage(tk.Frame):
     def DrawTurnStart(self):
         """在UI界面绘出回合开始画面"""
         self.turn_message_var.set("己方回合开始!")
+        self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
+
+    def DrawRemoteTurnStart(self):
+        self.turn_message_var.set("对方回合开始!")
         self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
 
     def DrawTurnEnd(self):
@@ -555,7 +559,7 @@ class MainApp(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("纸牌对战游戏")
+        self.title("Project FairCard")
         self.geometry("800x600")
 
         self.game_state: GameState | None = None  # 由 main.py 注入
@@ -656,11 +660,15 @@ class MainApp(tk.Tk):
         self.show_frame("GamePage")
         game_page: GamePage = self.frames["GamePage"]
         ui_state = self.game_state.get_ui_state()
+        for _ in range(3):
+            self.game_state.chooseCard()
         game_page.StatusUpdate(ui_state)
         if self.game_state.is_my_turn:
             game_page.DrawTurnStart()
+            self.game_state.ui_update(self.game_state.get_ui_state())
         else:
-            game_page.turn_message_var.set("等待对手回合...")
+            game_page.DrawRemoteTurnStart()
+            self.game_state.ui_update(self.game_state.get_ui_state())
 
     def start_game(self):
         """从开始界面点击“开始游戏”."""
