@@ -134,6 +134,13 @@ class GameState:
         elif msg_type == gconstants.EVENT_TURN_END:
             print("[GameState] 🔔 收到对手回合结束消息")
             self.remote_player.costRegen(2)
+            
+            self.is_my_turn = True
+            print("[GameState] ➡️ 现在轮到本地玩家出牌")
+
+
+        elif msg_type == gconstants.EVENT_CARD_DRAWN:
+            print("[GameState] 收到对手抽牌消息")            
             card_dict = msg.get("card")
             if card_dict:
                 # ✅ 关键修复：反序列化
@@ -142,16 +149,7 @@ class GameState:
                 self.local_player.hand.append(received_card)
                 print(f"[GameState] ✅ 卡牌已加入手牌，手牌数: {len(self.local_player.hand)}")
             else:
-                print("[GameState] ⚠️ 对手未递来卡牌")
-            
-            self.is_my_turn = True
-            print("[GameState] ➡️ 现在轮到本地玩家出牌")
-
-
-        elif msg_type == gconstants.EVENT_CARD_DRAWN:
-            print("[GameState] 收到对手抽牌消息")
-            card: Card = msg.get("card")
-            self.local_player.hand.append(card)
+                print("[GameState] ⚠️ 对手未递来卡牌")            
 
         else:
             print(f"[GameState] 未处理的消息类型: {msg_type}")
@@ -387,13 +385,9 @@ class GameState:
                 pass
 
         return
-
-    def turnEnd(self) -> None:
-        """【改进】本地玩家回合结束 - 同步获取用户选择的卡牌"""
-        print("[GameState] 本地玩家回合结束...")
-        
-        # 【步骤 1】生成三张待选卡牌
-        card_list = []
+    
+    def chooseCard(self) -> None:
+        card_list : list[Card] = []
         for _ in range(3):
             card_list.append(
                 Card(
@@ -403,6 +397,24 @@ class GameState:
                     gconstants.STATUS_CARD_NO_EFFECT
                 )
             )
+            
+        selected_card: Card = self.ui_draw_card_selection_callback(card_list)
+        
+        if selected_card is None:
+            print("[GameState] ⚠️ 用户未选择卡牌，使用默认卡牌")
+            selected_card = card_list[0]
+        
+        self.remote_player.hand.append(selected_card)
+        self.sendTurnEndCard(selected_card)
+
+        
+
+    def turnEnd(self) -> None:
+        """【改进】本地玩家回合结束 - 同步获取用户选择的卡牌"""
+        print("[GameState] 本地玩家回合结束...")
+        
+        # 【步骤 1】生成三张待选卡牌
+        self.chooseCard()
         
         # 【步骤 2】恢复 Cost
         self.local_player.costRegen(2)
@@ -411,16 +423,9 @@ class GameState:
         # 【步骤 3】显示弹窗并同步等待用户选择
         # 【关键改进】现在直接调用 draw_card_selection()，它会返回被选中的卡牌
         # 这会阻塞直到用户完成选择
-        selected_card: Card = self.ui_draw_card_selection_callback(card_list)
         
-        if selected_card is None:
-            print("[GameState] ⚠️ 用户未选择卡牌，使用默认卡牌")
-            selected_card = card_list[0]
-        
-        self.remote_player.hand.append(selected_card)
         # 【步骤 4】发送选定的卡牌给对方
         self.ui_update(self.get_ui_state())
-        self.sendTurnEndCard(selected_card)
 
 
     def sendTurnEndCard(self, selected_card: Card) -> None:
@@ -431,7 +436,7 @@ class GameState:
         
         # 【关键】直接接收 Card 对象，而不是索引
         self.NetworkManager.send({
-            "type": gconstants.EVENT_TURN_END,
+            "type": gconstants.EVENT_CARD_DRAWN,
             "card": card_dict,
             "player": "remote",
             "sender_turn_end": True
