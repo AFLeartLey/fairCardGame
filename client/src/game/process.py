@@ -133,7 +133,7 @@ class GameState:
 
         elif msg_type == gconstants.EVENT_TURN_END:
             print("[GameState] 🔔 收到对手回合结束消息")
-            
+            self.remote_player.costRegen(2)
             card_dict = msg.get("card")
             if card_dict:
                 # ✅ 关键修复：反序列化
@@ -194,6 +194,7 @@ class GameState:
                     "hand_cards": [
                         self._card_to_str(c) for c in self.local_player.hand
                     ],
+                    "is_my_turn": self.is_my_turn,
                 },
                 "opponent": {
                     "hp": self.remote_player.health,
@@ -414,9 +415,11 @@ class GameState:
         
         if selected_card is None:
             print("[GameState] ⚠️ 用户未选择卡牌，使用默认卡牌")
-            selected_card = card_list
+            selected_card = card_list[0]
         
+        self.remote_player.hand.append(selected_card)
         # 【步骤 4】发送选定的卡牌给对方
+        self.ui_update(self.get_ui_state())
         self.sendTurnEndCard(selected_card)
 
 

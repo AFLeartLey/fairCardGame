@@ -222,7 +222,7 @@ class GamePage(tk.Frame):
         # 创建模态窗口
         self.draw_window = tk.Toplevel(self)
         self.draw_window.title("选择一张卡牌")
-        self.draw_window.geometry("500x300")
+        self.draw_window.geometry("700x300")
         self.draw_window.resizable(False, False)
         
         # 【美化】添加标题
