@@ -8,6 +8,9 @@ from tkinter import messagebox
 
 from src.game.process import GameState
 
+os.environ['TCL_LIBRARY'] = r'D:\PYTHON\Python\tcl\tcl8.6'
+os.environ['TK_LIBRARY'] = r'D:\PYTHON\Python\tcl\tk8.6'
+
 
 # 以下为各个界面的定义
 class StartPage(tk.Frame):
@@ -116,7 +119,7 @@ class GamePage(tk.Frame):
             font=("Arial", 36, "bold"),
             fg="red",
         )
-        self.turn_message_label.pack(pady=50)  # 最初是空的，回合开始/结束时显示
+        self.turn_message_label.pack(pady=50)
 
         # 2b. 结束回合按钮
         turn_end_button = tk.Button(
@@ -150,7 +153,7 @@ class GamePage(tk.Frame):
         # 己方手牌区域
         self.hand_frame = tk.Frame(self)
         self.hand_frame.pack(side="bottom", fill="x", pady=10)
-        self.card_buttons = []
+        self.card_buttons = []  # 存储手牌按钮
 
     # --- 状态更新函数 ---
     def StatusUpdate(self, game_data):
@@ -175,228 +178,220 @@ class GamePage(tk.Frame):
         self.update_hand_display(player_data["hand_cards"])
 
     def update_hand_display(self, hand_cards):
-        """重新绘制己方手牌按钮"""
+        """重新绘制己方手牌为竖着的长方形，显示详细信息"""
         # 清除旧的按钮
         for btn in self.card_buttons:
             btn.destroy()
         self.card_buttons = []
 
-        # 绘制新的按钮
-        for i, card_name in enumerate(hand_cards):
+        # 绘制新的手牌按钮
+        for i, card in enumerate(hand_cards):
+            # 获取卡牌信息
+            try:
+                p_effect = getattr(card, 'getPcarditem', lambda: "无正面效果")()
+                n_effect = getattr(card, 'getNcarditem', lambda: "无负面效果")()
+                power = getattr(card, 'getItemPower', lambda: 0)()
+                card_name = getattr(card, 'name', f"卡牌 {i + 1}")
+
+                # 格式化卡牌信息，显示在多行
+                card_text = f"{card_name}\n━━━━━━━━━━━━━━━\n正面: {p_effect}\n负面: {n_effect}\n等级: Lv{power}"
+
+                # 检查是否有费用属性
+                try:
+                    cost = getattr(card, 'cost', 0)
+                    if cost > 0:
+                        card_text += f"\n费用: {cost}"
+                except:
+                    pass
+
+            except Exception as e:
+                # 如果卡牌对象没有这些属性，显示备用信息
+                card_text = str(card)
+
+            # 创建手牌按钮（竖着的长方形）
             btn = tk.Button(
                 self.hand_frame,
-                text=card_name,
+                text=card_text,
                 command=lambda idx=i: self.card_click(idx),
-                width=10,
-                height=5,
+                width=12,  # 较小宽度，形成竖着长方形
+                height=8,  # 较大高度
                 relief=tk.RAISED,
+                font=("Arial", 9),
+                anchor="nw",  # 文本左对齐，从上开始
+                justify="left",
+                bg="#f0f0f0",  # 浅灰色背景
+                activebackground="#e0e0e0"
             )
-            btn.pack(side="left", padx=5)
+            btn.pack(side="left", padx=5, pady=5)
             self.card_buttons.append(btn)
 
     # --- 回合画面函数 ---
     def DrawTurnStart(self):
         """在UI界面绘出回合开始画面"""
         self.turn_message_var.set("己方回合开始!")
-        self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
+        self.after(1500, lambda: self.turn_message_var.set(""))
 
     def DrawRemoteTurnStart(self):
         self.turn_message_var.set("对方回合开始!")
-        self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
+        self.after(1500, lambda: self.turn_message_var.set(""))
 
     def DrawTurnEnd(self):
         """在UI界面绘出回合结束画面"""
         self.turn_message_var.set("回合结束!")
-        self.after(1500, lambda: self.turn_message_var.set(""))  # 1.5秒后清空
+        self.after(1500, lambda: self.turn_message_var.set(""))
 
+    # --- 抽牌选择弹窗（保持"单击选择，点击按钮递出"的形式）---
     def draw_card_selection(self, three_cards: list) -> object:
         """
-        【新方法】显示卡牌选择弹窗，并返回用户选择的卡牌
-        
-        这个方法使用 wait_window() 进行同步等待，确保调用者能获取到用户的选择结果
-        
-        :param three_cards: 包含 3 个 Card 对象的列表
-        :return: 用户选择的 Card 对象，如果取消则返回 None
+        显示卡牌选择弹窗，并返回用户选择的卡牌
         """
         print(f"[UI] 显示卡牌选择窗口，共 {len(three_cards)} 张卡牌")
-        
+
         # 【关键】初始化选择结果容器
         self.selected_card = None
-        
+        self.draw_choice_buttons = []  # 清空之前的按钮列表
+
         # 创建模态窗口
         self.draw_window = tk.Toplevel(self)
         self.draw_window.title("选择一张卡牌")
-        self.draw_window.geometry("700x300")
+        self.draw_window.geometry("700x500")  # 调大窗口以适应更多内容
         self.draw_window.resizable(False, False)
-        
-        # 【美化】添加标题
-        title_label = tk.Label(self.draw_window, text="请选择一张卡牌递给对手：", 
-                            font=('Arial', 14, 'bold'))
-        title_label.pack(pady=15)
-        
-        # 【改进】卡牌显示框架
-        card_display_frame = tk.LabelFrame(self.draw_window, text="可选卡牌", 
-                                        font=('Arial', 12), padx=10, pady=10)
-        card_display_frame.pack(pady=10, padx=10, fill="both", expand=True)
-        
-        self.draw_choice_buttons = []
-        
-        # 【关键】为每张卡牌创建选择按钮
-        for i, card in enumerate(three_cards):
-            card_str = self._format_card_for_display(card)
-            
-            btn = tk.Button(
-                card_display_frame, 
-                text=card_str,
-                command=lambda idx=i, c=card: self._on_card_selected(idx, c),
-                width=20, 
-                height=4,
-                relief=tk.RAISED,
-                font=('Arial', 10),
-                bg="lightblue",
-                activebackground="lightyellow"
-            )
-            btn.pack(side="left", padx=5, pady=5)
-            self.draw_choice_buttons.append(btn)
-        
-        # 【新增】操作提示框架
-        info_frame = tk.Frame(self.draw_window)
-        info_frame.pack(pady=10)
 
-    def draw_card_selection(self, three_cards: list) -> object:
-        """
-        【新方法】显示卡牌选择弹窗，并返回用户选择的卡牌
-        
-        这个方法使用 wait_window() 进行同步等待，确保调用者能获取到用户的选择结果
-        
-        :param three_cards: 包含 3 个 Card 对象的列表
-        :return: 用户选择的 Card 对象，如果取消则返回 None
-        """
-        print(f"[UI] 显示卡牌选择窗口，共 {len(three_cards)} 张卡牌")
-        
-        # 【关键】初始化选择结果容器
-        self.selected_card = None
-        
-        # 创建模态窗口
-        self.draw_window = tk.Toplevel(self)
-        self.draw_window.title("选择一张卡牌")
-        self.draw_window.geometry("500x300")
-        self.draw_window.resizable(False, False)
-        
+        # 绑定窗口关闭事件
+        self.draw_window.protocol("WM_DELETE_WINDOW", self._on_draw_window_close)
+
         # 【美化】添加标题
-        title_label = tk.Label(self.draw_window, text="请选择一张卡牌递给对手：", 
-                            font=('Arial', 14, 'bold'))
+        title_label = tk.Label(self.draw_window, text="请选择一张卡牌递给对手：",
+                               font=('Arial', 14, 'bold'))
         title_label.pack(pady=15)
-        
-        # 【改进】卡牌显示框架
-        card_display_frame = tk.LabelFrame(self.draw_window, text="可选卡牌", 
-                                        font=('Arial', 12), padx=10, pady=10)
-        card_display_frame.pack(pady=10, padx=10, fill="both", expand=True)
-        
-        self.draw_choice_buttons = []
-        
+
+        # 【改进】卡牌显示框架 - 保持居中
+        card_display_frame = tk.LabelFrame(self.draw_window, text="可选卡牌",
+                                           font=('Arial', 12), padx=10, pady=10)
+        card_display_frame.pack(pady=10, padx=20, fill="x")
+
+        # 【新增】卡牌按钮容器，用于更精细地控制按钮的居中
+        button_container = tk.Frame(card_display_frame)
+        button_container.pack(pady=10)
+
         # 【关键】为每张卡牌创建选择按钮
+        BUTTON_WIDTH = 15
+        BUTTON_HEIGHT = 6  # 增加高度以显示更多信息
+
         for i, card in enumerate(three_cards):
+            # 格式化卡牌信息
             card_str = self._format_card_for_display(card)
-            
+
             btn = tk.Button(
-                card_display_frame, 
+                button_container,
                 text=card_str,
+                # 单击时调用 _on_card_selected
                 command=lambda idx=i, c=card: self._on_card_selected(idx, c),
-                width=20, 
-                height=4,
+                width=BUTTON_WIDTH,
+                height=BUTTON_HEIGHT,
                 relief=tk.RAISED,
                 font=('Arial', 10),
                 bg="lightblue",
-                activebackground="lightyellow"
+                activebackground="lightyellow",
+                anchor="nw",  # 文本左对齐，从上开始
+                justify="left"
             )
-            btn.pack(side="left", padx=5, pady=5)
+            btn.pack(side="left", padx=15)
             self.draw_choice_buttons.append(btn)
-        
+
         # 【新增】操作提示框架
         info_frame = tk.Frame(self.draw_window)
-        info_frame.pack(pady=10)
-        
-        tk.Label(info_frame, text="选中的卡牌会高亮显示，双击确认选择", 
-                font=('Arial', 9), fg="gray").pack()
-        
+        info_frame.pack(pady=15)
+
+        tk.Label(info_frame, text="提示：单击卡牌选择，选中的卡牌会高亮显示",
+                 font=('Arial', 10), fg="gray").pack()
+
+        # 确认按钮框架
+        confirm_frame = tk.Frame(self.draw_window)
+        confirm_frame.pack(pady=10)
+
+        # 确认按钮
+        confirm_btn = tk.Button(confirm_frame, text="✅ 确认选择并递给对手",
+                                command=self._confirm_draw_selection_wrapper,
+                                font=('Arial', 12, 'bold'),
+                                bg="lightgreen",
+                                padx=20,
+                                pady=10)
+        confirm_btn.pack()
+
         # 【关键】使窗口成为模态窗口
         self.draw_window.transient(self.master)
         self.draw_window.grab_set()
         self.draw_window.focus_set()
-        
+
         # 【关键】阻塞等待用户选择
-        # 这行代码会暂停 draw_card_selection 的执行
-        # 直到 self.draw_window 被 destroy()，才会继续执行
         self.wait_window(self.draw_window)
-        
+
         # 【关键返回值】用户选择完成后返回选中的卡牌
         if self.selected_card is not None:
             print(f"[UI] 用户选择了卡牌: {self._format_card_for_display(self.selected_card)}")
             return self.selected_card
         else:
-            print("[UI] ⚠️ 用户未完成选择，返回 None")
+            print("[UI] ⚠️ 用户未完成选择或取消，返回 None")
             return None
 
+    def _on_draw_window_close(self):
+        """处理窗口关闭事件"""
+        print("[UI] 窗口被关闭或取消")
+        self.selected_card = None
+        if self.draw_window:
+            self.draw_window.destroy()
 
     def _format_card_for_display(self, card: object) -> str:
         """
-        【辅助方法】将卡牌对象格式化为显示字符串
-        
-        :param card: Card 对象
-        :return: 格式化后的卡牌描述字符串
+        将卡牌对象格式化为显示字符串
         """
         try:
             if hasattr(card, 'getPcarditem') and hasattr(card, 'getNcarditem'):
                 return (f"正面: {card.getPcarditem()}\n"
-                    f"负面: {card.getNcarditem()}\n"
-                    f"等级: Lv{card.getItemPower()}")
+                        f"负面: {card.getNcarditem()}\n"
+                        f"等级: Lv{card.getItemPower()}")
             else:
                 return str(card)
         except Exception as e:
             print(f"[UI] 格式化卡牌失败: {e}")
             return str(card)
 
-
     def _on_card_selected(self, index: int, card: object) -> None:
         """
-        【回调方法】当玩家点击卡牌时调用
-        
-        :param index: 卡牌在列表中的索引
-        :param card: 被选中的 Card 对象
+        【回调方法】当玩家单击卡牌时调用 - 仅高亮显示并保存选择
         """
-        print(f"[UI] 玩家点击了第 {index} 张卡牌")
-        
+        print(f"[UI] 玩家单击了第 {index} 张卡牌 (仅选中)")
+
         # 【改进】高亮选中的按钮
         for i, btn in enumerate(self.draw_choice_buttons):
             if i == index:
-                btn.config(relief=tk.SUNKEN, bg="lightgreen", fg="white", 
-                        font=('Arial', 10, 'bold'))
+                # 高亮
+                btn.config(relief=tk.SUNKEN, bg="lightgreen", fg="black",
+                           font=('Arial', 10, 'bold'))
             else:
-                btn.config(relief=tk.RAISED, bg="lightblue", fg="black", 
-                        font=('Arial', 10))
-        
+                # 恢复默认
+                btn.config(relief=tk.RAISED, bg="lightblue", fg="black",
+                           font=('Arial', 10))
+
         # 【关键】保存用户的选择
         self.selected_card = card
-        
-        # 【新增】显示确认对话框
-        card_str = self._format_card_for_display(card)
-        if messagebox.askyesno("确认选择", f"✅ 确认选择这张卡牌吗？\n\n{card_str}"):
-            print("[UI] 用户确认选择")
-            # 【关键】关闭窗口，这会解除 wait_window() 的阻塞
+
+    def _confirm_draw_selection_wrapper(self):
+        """确认选择按钮的回调"""
+        if self.selected_card:
+            # 显示确认消息
+            messagebox.showinfo("递牌", f"选择将卡牌递给对手。")
             self.draw_window.destroy()
         else:
-            print("[UI] 用户取消选择，重新选择")
-            # 重置选择，允许用户重新选择
-            self.selected_card = None
-            for btn in self.draw_choice_buttons:
-                btn.config(relief=tk.RAISED, bg="lightblue", fg="black", 
-                        font=('Arial', 10))
-
+            messagebox.showwarning("提示", "请先选择一张卡牌！")
 
     # --- 玩家出牌阶段 ---
     def card_click(self, index):
         """玩家点击手牌选择/打出"""
+        if index >= len(self.card_buttons):
+            return
+
         if self.selected_card_index == index:
             # 再次点击：确认打出
             self.play_card(index)
@@ -411,7 +406,7 @@ class GamePage(tk.Frame):
 
     def play_card(self, index: int):
         """执行打牌操作 -> 调用 GameState.playCard，并刷新 UI。"""
-        gs: GameState = self.controller.game_state
+        gs = self.controller.game_state if hasattr(self.controller, 'game_state') else None
         if gs is None:
             messagebox.showerror("错误", "GameState 未初始化")
             return
@@ -432,7 +427,7 @@ class GamePage(tk.Frame):
 
     def end_turn_click(self):
         """点击"结束回合"按钮 - 触发回合结束流程"""
-        gs: GameState = self.controller.game_state
+        gs = self.controller.game_state if hasattr(self.controller, 'game_state') else None
         if gs is None:
             return
 
@@ -445,64 +440,15 @@ class GamePage(tk.Frame):
         gs.is_my_turn = False
 
         # 【步骤 3】2秒后启动回合结束处理
-        # (给玩家看"回合结束"提示的时间)
         if hasattr(self, 'turn_end_callback') and self.turn_end_callback:
             print("[UI] 启动回合结束处理")
             self.after(1000, self.turn_end_callback)
         else:
             print("[UI] ⚠️ 警告: turn_end_callback 未设置！")
 
-
-    def show_draw_choice(self, three_cards_data):
-        """
-        回合结束后，显示三张牌供玩家选择一张给对方。
-        :param three_cards_data: 三张牌的内容列表
-        """
-        # 弹出新窗口或在主界面上覆盖一个Frame
-        self.draw_window = tk.Toplevel(self)
-        self.draw_window.title("选择一张递给对手")
-        self.draw_window.geometry("400x400")
-
-        tk.Label(self.draw_window, text="请选择一张牌放入对手牌堆:").pack(pady=10)
-
-        card_choice_frame = tk.Frame(self.draw_window)
-        card_choice_frame.pack(pady=10)
-
-        self.draw_choice_buttons = []
-        for i, card_name in enumerate(three_cards_data):
-            btn = tk.Button(
-                card_choice_frame,
-                text=card_name,
-                command=lambda idx=i: self.draw_card_select(idx, three_cards_data),
-                width=10,
-            )
-            btn.pack(side="left", padx=5)
-            self.draw_choice_buttons.append(btn)
-
-        # 锁定主界面，直到选择完毕
-        self.draw_window.grab_set()
-
-    def draw_card_select(self, index, three_cards_data):
-        """选择一张牌递给对手"""
-        self.selected_draw_index = index
-
-        # 改变选中牌的颜色提示
-        for i, btn in enumerate(self.draw_choice_buttons):
-            if i == index:
-                btn.config(relief=tk.SUNKEN, bg="lightgreen")
-            else:
-                btn.config(relief=tk.RAISED, bg="SystemButtonFace")
-
-        # 确认选择并关闭窗口
-        selected_card = three_cards_data[index]
-        # **这里需要发送选择这张牌给对手的网络数据包**
-        messagebox.showinfo("递牌", f"选择将 {selected_card} 递给对手。")
-
-        self.draw_window.destroy()
-
     # --- 通用API：实现抽牌功能（由后端调用） ---
     def DrawACard(self):
-        gs: GameState = self.controller.game_state
+        gs = self.controller.game_state if hasattr(self.controller, 'game_state') else None
         if gs is None:
             return
         ui_state = gs.get_ui_state()
