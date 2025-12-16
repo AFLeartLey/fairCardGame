@@ -129,7 +129,7 @@ class GameState:
 
         elif msg_type == EVENT_CARD_PLAYED:
             print("[GameState] 收到对手出牌消息")
-            self.parseRemotePlayedCard(msg.get("card"))
+            self.parseRemotePlayedCard(self._dict_to_card(msg.get("card")))
 
         elif msg_type == gconstants.EVENT_TURN_END:
             print("[GameState] 🔔 收到对手回合结束消息")
@@ -266,6 +266,7 @@ class GameState:
         card = self.local_player.hand[card_index]
         if not self.checkCardPlayable(card):
             return False
+        self.local_player.hand.pop(card_index)
 
         # Apply negative card item effects
         match card.getNcarditem():
@@ -284,7 +285,7 @@ class GameState:
                 pass
 
         self.NetworkManager.send(
-            {"type": EVENT_CARD_PLAYED, "card": card, "param": None, "player": "remote"}
+            {"type": EVENT_CARD_PLAYED, "card": self._card_to_dict(card), "param": None, "player": "remote"}
         )
 
         match card.getPcarditem():
@@ -294,16 +295,6 @@ class GameState:
             case "card_draw":
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
-                    request_info = self.NetworkManager.request(
-                        {
-                            "type": gconstants.EVENT_REQUEST_CARD,
-                            "param": None,
-                            "player": "remote",
-                        },
-                        120,
-                        "rpc_request",
-                        False,
-                    )
                     card_recv: Card = request_info["card"]
                     # should be card received from network module
                     self.local_player.hand.append(card_recv)
@@ -317,7 +308,6 @@ class GameState:
                 pass
 
         # Remove the card from hand after playing
-        self.local_player.hand.pop(card_index)
         self.ui_update(self.get_ui_state())
         return True
 
@@ -330,6 +320,7 @@ class GameState:
         Returns:
             None
         """
+        self.remote_player.hand.pop(0)
         # Apply negative card item effects
         match card.getNcarditem():
             case "self_damage":
@@ -353,28 +344,7 @@ class GameState:
             case "card_draw":
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
-                    card_list = []
-                    for i in range(3):
-                        card_list.append(
-                            Card(
-                                choice(gconstants.ITEM_POWER_LIST),
-                                choice(gconstants.PCARDITEMLIST),
-                                choice(gconstants.NCARDITEMLIST),
-                                gconstants.STATUS_CARD_NO_EFFECT,
-                            )
-                        )
-                    choice_card: Card = card_list[
-                        0
-                    ]  # = ui.drawCardSelection(card_list)
-                    self.remote_player.hand.append(choice_card)
-                    self.NetworkManager.send(
-                        {
-                            "type": gconstants.EVENT_CARD_DRAWN,
-                            "card": choice_card,
-                            "param": None,
-                            "player": "local",
-                        }
-                    )
+                    self.chooseCard()
             case "damage":
                 damage = gValues[card.getPcarditem()][card.getItemPower()]
                 self.local_player.takeDamage(damage)
@@ -383,7 +353,7 @@ class GameState:
                 self.remote_player.costRegen(recover)
             case _:
                 pass
-
+        self.ui_update(self.get_ui_state())
         return
     
     def chooseCard(self) -> None:
@@ -405,7 +375,7 @@ class GameState:
             selected_card = card_list[0]
         
         self.remote_player.hand.append(selected_card)
-        self.sendTurnEndCard(selected_card)
+        self.sendDrawnCard(selected_card)
 
         
 
@@ -428,7 +398,7 @@ class GameState:
         self.ui_update(self.get_ui_state())
 
 
-    def sendTurnEndCard(self, selected_card: Card) -> None:
+    def sendDrawnCard(self, selected_card: Card) -> None:
         """【改进】发送选定的卡牌给对方"""
         print(f"[GameState] 正在发送卡牌给对方: {self._card_to_str(selected_card)}")
 

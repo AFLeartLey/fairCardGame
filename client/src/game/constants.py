@@ -106,11 +106,9 @@ PCARDITEMLIST = [
 ITEM_POWER values indicate the level for every card item effect,
 affecting the numerical outcome of the effect.
 """
-ITEM_POWER_CLEAR = 0
-ITEM_POWER_LOW = 1
-ITEM_POWER_MEDIUM = 2
-ITEM_POWER_HIGH = 3
-ITEM_POWER_EXTRA = 4
+ITEM_POWER_LOW = 0
+ITEM_POWER_MEDIUM = 1
+ITEM_POWER_HIGH = 2
 ITEM_POWER_LIST = [ITEM_POWER_LOW, ITEM_POWER_MEDIUM, ITEM_POWER_HIGH]
 
 """
@@ -118,13 +116,13 @@ here we define different values for every card item type,
 which will be used in card item effect calculations,
 including damage amount, heal amount, cost amount, etc.
 """
-CARD_ITEM_VALUES = {}
+CARD_ITEM_VALUES: dict[str, list[int]] = {}
 
-CARD_ITEM_VALUES[NCARDITEM_SELF_DAMAGE] = {1, 2, 3}
-CARD_ITEM_VALUES[NCARDITEM_CARD_DISCARD] = {1, 1, 2}
-CARD_ITEM_VALUES[NCARDITEM_COST_USAGE] = {1, 2, 3}
+CARD_ITEM_VALUES[NCARDITEM_SELF_DAMAGE]: list[int] = [1, 2, 3]
+CARD_ITEM_VALUES[NCARDITEM_CARD_DISCARD]: list[int] = [1, 1, 2]
+CARD_ITEM_VALUES[NCARDITEM_COST_USAGE]: list[int] = [1, 2, 3]
 
-CARD_ITEM_VALUES[PCARDITEM_HEAL] = {2, 3, 4}
-CARD_ITEM_VALUES[PCARDITEM_CARD_DRAW] = {1, 2, 3}
-CARD_ITEM_VALUES[PCARDITEM_DAMAGE] = {2, 3, 5}
-CARD_ITEM_VALUES[PCARDITEM_COST_RECOVER] = {1, 2, 3}
+CARD_ITEM_VALUES[PCARDITEM_HEAL]: list[int] = [2, 3, 4]
+CARD_ITEM_VALUES[PCARDITEM_CARD_DRAW]: list[int] = [1, 2, 3]
+CARD_ITEM_VALUES[PCARDITEM_DAMAGE]: list[int] = [2, 3, 5]
+CARD_ITEM_VALUES[PCARDITEM_COST_RECOVER]: list[int] = [1, 2, 3]
