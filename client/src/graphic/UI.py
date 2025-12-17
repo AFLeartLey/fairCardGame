@@ -437,7 +437,6 @@ class GamePage(tk.Frame):
         """确认选择按钮的回调"""
         if self.selected_card:
             # 显示确认消息
-            messagebox.showinfo("递牌", f"选择将卡牌递给对手。")
             self.draw_window.destroy()
         else:
             messagebox.showwarning("提示", "请先选择一张卡牌！")
@@ -549,8 +548,18 @@ class EndPage(tk.Frame):
     def restart_game(self):
         """点击“再来一局”，返回开始界面并准备新连接"""
         # **这里需要通知后端准备新局，并关闭当前的socket连接等**
-        self.controller.show_frame("StartPage")
-        self.controller.frames["StartPage"].update_room_status("未连接")
+        print("[UI] 点击了'再来一局'按钮")
+    
+    # 关闭网络连接
+        try:
+            if self.controller.game_state and self.controller.game_state.NetworkManager:
+                self.controller.game_state.NetworkManager.close()
+        except:
+            pass
+        
+        # 关键：结束 mainloop
+        self.controller.should_restart = True
+        self.controller.quit()
 
 
 # UI.py
@@ -579,8 +588,50 @@ class MainApp(tk.Tk):
             frame.grid(row=0, column=0, sticky="nsew")
 
         self.show_frame("StartPage")
-
+        self.should_restart = False
+        self.protocol("WM_DELETE_WINDOW", self.on_window_close)
         self.game_started = False
+
+    def on_window_close(self):
+        """处理用户关闭窗口"""
+        print("[UI] 窗口关闭事件")
+        
+        try:
+            if self.game_state and self.game_state.NetworkManager:
+                self.game_state.NetworkManager.close()
+        except:
+            pass
+        
+        # 【关键】标记不重启
+        self.should_restart = False
+        self.quit()
+
+    def destroy_app(self):
+        """彻底销毁应用及所有资源"""
+        print("[UI] 开始销毁应用...")
+        
+        try:
+            # 关闭网络连接
+            if self.game_state and self.game_state.NetworkManager:
+                self.game_state.NetworkManager.close()
+        except:
+            pass
+        
+        try:
+            # 销毁所有框架
+            for frame_name, frame in self.frames.items():
+                frame.destroy()
+        except:
+            pass
+        
+        try:
+            # 销毁主窗口
+            self.destroy()
+            print("[UI] ✅ 主窗口已销毁")
+        except:
+            pass
+
+
 
     def setState(self, game_state: GameState):
         """绑定网络回调到 UI 更新"""

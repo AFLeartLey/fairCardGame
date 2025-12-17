@@ -223,7 +223,7 @@ class GameState:
         """
 
         match targetCard.getNcarditem():
-            case "self_damage":
+            case gconstants.NCARDITEM_SELF_DAMAGE:
                 if (
                     self.local_player.health
                     > gValues[targetCard.getNcarditem()][targetCard.getItemPower()]
@@ -231,7 +231,7 @@ class GameState:
                     return True
                 else:
                     return False
-            case "card_discard":
+            case gconstants.NCARDITEM_CARD_DISCARD:
                 if (
                     len(self.local_player.hand)
                     > gValues[targetCard.getNcarditem()][targetCard.getItemPower()]
@@ -239,7 +239,7 @@ class GameState:
                     return True
                 else:
                     return False
-            case "cost_usage":
+            case gconstants.NCARDITEM_COST_USAGE:
                 if (
                     self.local_player.cost
                     >= gValues[targetCard.getNcarditem()][targetCard.getItemPower()]
@@ -277,15 +277,15 @@ class GameState:
 
         # Apply negative card item effects
         match card.getNcarditem():
-            case "self_damage":
+            case gconstants.NCARDITEM_SELF_DAMAGE:
                 damage = gValues[card.getNcarditem()][card.getItemPower()]
                 self.local_player.takeDamage(damage)
-            case "card_discard":
+            case gconstants.NCARDITEM_CARD_DISCARD:
                 discard_count = gValues[card.getNcarditem()][card.getItemPower()]
                 for _ in range(discard_count):
                     if self.local_player.hand:
                         self.local_player.hand.pop(0)  # Discard the first card in hand
-            case "cost_usage":
+            case gconstants.NCARDITEM_COST_USAGE:
                 cost = gValues[card.getNcarditem()][card.getItemPower()]
                 self.local_player.costUsage(cost)
             case _:
@@ -296,16 +296,16 @@ class GameState:
         )
 
         match card.getPcarditem():
-            case "heal":
+            case gconstants.PCARDITEM_HEAL:
                 heal = gValues[card.getPcarditem()][card.getItemPower()]
                 self.local_player.takeHeal(heal)
-            case "card_draw":
+            case gconstants.PCARDITEM_CARD_DRAW:
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 pass
-            case "damage":
+            case gconstants.PCARDITEM_DAMAGE:
                 damage = gValues[card.getPcarditem()][card.getItemPower()]
                 self.remote_player.takeDamage(damage)
-            case "cost_recover":
+            case gconstants.PCARDITEM_COST_RECOVER:
                 recover = gValues[card.getPcarditem()][card.getItemPower()]
                 self.local_player.costRegen(recover)
             case _:
@@ -328,32 +328,32 @@ class GameState:
         self.remote_player.hand.pop(0)
         # Apply negative card item effects
         match card.getNcarditem():
-            case "self_damage":
+            case gconstants.NCARDITEM_SELF_DAMAGE:
                 damage = gValues[card.getNcarditem()][card.getItemPower()]
                 self.remote_player.takeDamage(damage)
-            case "card_discard":
+            case gconstants.NCARDITEM_CARD_DISCARD:
                 discard_count = gValues[card.getNcarditem()][card.getItemPower()]
                 for _ in range(discard_count):
                     if self.remote_player.hand:
                         self.remote_player.hand.pop(0)  # Discard the first card in hand
-            case "cost_usage":
+            case gconstants.NCARDITEM_COST_USAGE:
                 cost = gValues[card.getNcarditem()][card.getItemPower()]
                 self.remote_player.costUsage(cost)
             case _:
                 pass
 
         match card.getPcarditem():
-            case "heal":
+            case gconstants.PCARDITEM_HEAL:
                 heal = gValues[card.getPcarditem()][card.getItemPower()]
                 self.remote_player.takeHeal(heal)
-            case "card_draw":
+            case gconstants.PCARDITEM_CARD_DRAW:
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
                 for _ in range(draw_count):
                     self.chooseCard()
-            case "damage":
+            case gconstants.PCARDITEM_DAMAGE:
                 damage = gValues[card.getPcarditem()][card.getItemPower()]
                 self.local_player.takeDamage(damage)
-            case "cost_recover":
+            case gconstants.PCARDITEM_COST_RECOVER:
                 recover = gValues[card.getPcarditem()][card.getItemPower()]
                 self.remote_player.costRegen(recover)
             case _:
