@@ -17,6 +17,9 @@ class GameState:
         self.is_my_turn = False
         self.ui_draw_card_selection_callback = None
         self.ui_update = None
+        self.game_over_callback = None
+        self.showframe = None
+        self.drawTurnstart = None
 
     # -------------- Getter Methods -----------------
     # -----------------------------------------------
@@ -134,7 +137,7 @@ class GameState:
         elif msg_type == gconstants.EVENT_TURN_END:
             print("[GameState] 🔔 收到对手回合结束消息")
             self.remote_player.costRegen(2)
-            
+            self.drawTurnstart()
             self.is_my_turn = True
             print("[GameState] ➡️ 现在轮到本地玩家出牌")
 
@@ -169,9 +172,13 @@ class GameState:
         """
 
         if self.remote_player.isDefeated():
-            return "local"
+            self.game_over_callback(True)
+            self.showframe("EndPage")
+            return
         elif self.local_player.isDefeated():
-            return "remote"
+            self.game_over_callback(False)
+            self.showframe("EndPage")
+            return
         else:
             return None
 
@@ -190,15 +197,15 @@ class GameState:
                     "hand_count": len(self.local_player.hand),
                     "cost": self.local_player.cost,
                     "hand_cards": [
-                        self._card_to_str(c) for c in self.local_player.hand
+                        self._card_to_dict(c) for c in self.local_player.hand
                     ],
-                    "is_my_turn": self.is_my_turn,
                 },
                 "opponent": {
                     "hp": self.remote_player.health,
                     "hand_count": len(self.remote_player.hand),
                     "cost": self.remote_player.cost,
                 },
+                "is_my_turn": self.is_my_turn,
             }
         }
 
@@ -294,10 +301,7 @@ class GameState:
                 self.local_player.takeHeal(heal)
             case "card_draw":
                 draw_count = gValues[card.getPcarditem()][card.getItemPower()]
-                for _ in range(draw_count):
-                    card_recv: Card = request_info["card"]
-                    # should be card received from network module
-                    self.local_player.hand.append(card_recv)
+                pass
             case "damage":
                 damage = gValues[card.getPcarditem()][card.getItemPower()]
                 self.remote_player.takeDamage(damage)
@@ -309,6 +313,7 @@ class GameState:
 
         # Remove the card from hand after playing
         self.ui_update(self.get_ui_state())
+        self.checkGameOver()
         return True
 
     def parseRemotePlayedCard(self, card: Card) -> None:
@@ -354,6 +359,7 @@ class GameState:
             case _:
                 pass
         self.ui_update(self.get_ui_state())
+        self.checkGameOver()
         return
     
     def chooseCard(self) -> None:
@@ -389,6 +395,11 @@ class GameState:
         # 【步骤 2】恢复 Cost
         self.local_player.costRegen(2)
         print("[GameState] 本地玩家恢复 Cost +2")
+
+        self.NetworkManager.send({
+            "type": gconstants.EVENT_TURN_END,
+            "player": "remote",
+        })
         
         # 【步骤 3】显示弹窗并同步等待用户选择
         # 【关键改进】现在直接调用 draw_card_selection()，它会返回被选中的卡牌

@@ -8,8 +8,6 @@ from tkinter import messagebox
 
 from src.game.process import GameState
 
-os.environ['TCL_LIBRARY'] = r'D:\PYTHON\Python\tcl\tcl8.6'
-os.environ['TK_LIBRARY'] = r'D:\PYTHON\Python\tcl\tk8.6'
 
 
 # 以下为各个界面的定义
@@ -122,15 +120,36 @@ class GamePage(tk.Frame):
         self.turn_message_label.pack(pady=50)
 
         # 2b. 结束回合按钮
-        turn_end_button = tk.Button(
+        # 【新增】回合状态指示器框架
+        turn_indicator_frame = tk.Frame(mid_frame, bg="lightgray", padx=20, pady=10)
+        turn_indicator_frame.pack(pady=10)
+
+        # 回合指示器标签
+        self.turn_indicator_var = tk.StringVar(value="⏳ 等待游戏开始...")
+        self.turn_indicator_label = tk.Label(
+            turn_indicator_frame,
+            textvariable=self.turn_indicator_var,
+            font=("Arial", 18, "bold"),
+            fg="blue",
+            bg="lightgray",
+            padx=20,
+            pady=10
+        )
+        self.turn_indicator_label.pack()
+
+        # 2b. 结束回合按钮（存储引用以便后续禁用）
+        self.turn_end_button = tk.Button(
             mid_frame,
             text="➡️ 结束回合",
             command=self.end_turn_click,
             font=("Arial", 16),
             bg="red",
             fg="white",
-        ).pack(pady=20)
+        )
+        self.turn_end_button.pack(pady=20)
+
         self.turn_end_call = None
+
 
         # --- 3. 底部：己方状态 & 手牌 ---
         self.self_status_frame = tk.Frame(self)
@@ -163,19 +182,24 @@ class GamePage(tk.Frame):
         """
         player_data = game_data["player_status"]["self"]
         opponent_data = game_data["player_status"]["opponent"]
-
+        
         # 更新己方状态
         self.self_hp_var.set(f"己方生命值: {player_data['hp']}")
         self.self_hand_var.set(f"己方手牌数: {player_data['hand_count']}")
         self.self_cost_var.set(f"己方Cost: {player_data['cost']}")
-
+        
         # 更新对方状态
         self.opp_hp_var.set(f"对方生命值: {opponent_data['hp']}")
         self.opp_hand_var.set(f"对方手牌数: {opponent_data['hand_count']}")
         self.opp_cost_var.set(f"对方Cost: {opponent_data['cost']}")
-
+        
         # 更新己方手牌显示
         self.update_hand_display(player_data["hand_cards"])
+        
+        # 【新增】获取回合状态并更新 UI
+        is_my_turn = game_data["player_status"].get("is_my_turn", False)
+        self.update_turn_state(is_my_turn)
+
 
     def update_hand_display(self, hand_cards):
         """重新绘制己方手牌为竖着的长方形，显示详细信息"""
@@ -188,24 +212,17 @@ class GamePage(tk.Frame):
         for i, card in enumerate(hand_cards):
             # 获取卡牌信息
             try:
-                p_effect = getattr(card, 'getPcarditem', lambda: "无正面效果")()
-                n_effect = getattr(card, 'getNcarditem', lambda: "无负面效果")()
-                power = getattr(card, 'getItemPower', lambda: 0)()
-                card_name = getattr(card, 'name', f"卡牌 {i + 1}")
-
+                p_effect = card["pcarditem_type"]
+                n_effect = card["ncarditem_type"]
+                power = card["item_power"]
+                card_name = f"卡牌 {i + 1}"
+                print(f"[UI] 卡牌 {i + 1}: {card_name}，正面: {p_effect}，负面: {n_effect}，等级: Lv{power}")
                 # 格式化卡牌信息，显示在多行
                 card_text = f"{card_name}\n━━━━━━━━━━━━━━━\n正面: {p_effect}\n负面: {n_effect}\n等级: Lv{power}"
 
-                # 检查是否有费用属性
-                try:
-                    cost = getattr(card, 'cost', 0)
-                    if cost > 0:
-                        card_text += f"\n费用: {cost}"
-                except:
-                    pass
-
             except Exception as e:
                 # 如果卡牌对象没有这些属性，显示备用信息
+                print(f"[UI] ⚠️ 卡牌 {i + 1} 未找到详细信息，使用 str(card)：{str(card)}")
                 card_text = str(card)
 
             # 创建手牌按钮（竖着的长方形）
@@ -225,14 +242,53 @@ class GamePage(tk.Frame):
             btn.pack(side="left", padx=5, pady=5)
             self.card_buttons.append(btn)
 
+    def update_turn_state(self, is_my_turn: bool) -> None:
+        """
+        【新方法】根据回合状态更新 UI
+        
+        :param is_my_turn: True 表示自己的回合，False 表示对方的回合
+        """
+        print(f"[UI] 更新回合状态: is_my_turn={is_my_turn}")
+        
+        if is_my_turn:
+            # 【自己的回合】
+            self.turn_indicator_var.set("✅ 己方回合 - 可以出牌！")
+            self.turn_indicator_label.config(fg="green", bg="#e6ffe6")  # 绿色背景
+            
+            # 启用结束回合按钮
+            self.turn_end_button.config(state=tk.NORMAL)
+            
+            # 启用所有手牌按钮
+            for btn in self.card_buttons:
+                btn.config(state=tk.NORMAL)
+            
+            print("[UI] ✅ 启用了所有操作按钮")
+            
+        else:
+            # 【对方的回合】
+            self.turn_indicator_var.set("⏳ 对方回合 - 等待中...")
+            self.turn_indicator_label.config(fg="red", bg="#ffe6e6")   # 红色背景
+            
+            # 禁用结束回合按钮
+            self.turn_end_button.config(state=tk.DISABLED)
+            
+            # 禁用所有手牌按钮
+            for btn in self.card_buttons:
+                btn.config(state=tk.DISABLED)
+            
+            print("[UI] 🔒 禁用了所有操作按钮")
+
+
     # --- 回合画面函数 ---
     def DrawTurnStart(self):
         """在UI界面绘出回合开始画面"""
         self.turn_message_var.set("己方回合开始!")
+        self.update_turn_state(True)
         self.after(1500, lambda: self.turn_message_var.set(""))
 
     def DrawRemoteTurnStart(self):
         self.turn_message_var.set("对方回合开始!")
+        self.update_turn_state(False)
         self.after(1500, lambda: self.turn_message_var.set(""))
 
     def DrawTurnEnd(self):
@@ -541,6 +597,7 @@ class MainApp(tk.Tk):
 
         self.frames["GamePage"].turn_end_callback = self.game_state.turnEnd
         self.game_state.ui_update = self.frames["GamePage"].StatusUpdate
+        self.game_state.game_over_callback = self.frames["EndPage"].GameOver
 
     def _on_game_start_from_network(self):
         """当收到网络游戏开始消息时调用"""
@@ -604,6 +661,8 @@ class MainApp(tk.Tk):
     def _do_start_game(self):
         """【提取为公共方法】实际执行游戏开始"""
         self.show_frame("GamePage")
+        self.game_state.showframe = self.show_frame
+        self.game_state.drawTurnstart = self.frames["GamePage"].DrawTurnStart
         game_page: GamePage = self.frames["GamePage"]
         ui_state = self.game_state.get_ui_state()
         for _ in range(3):

@@ -10,8 +10,8 @@ EVENT items should be indicating different game events
 that can occur during gameplay, such as player actions,
 status changes, and game state updates.
 """
-EVENT_PLAYER_DAMAGE = "player_damage"
-EVENT_PLAYER_HEAL = "player_heal"
+EVENT_PLAYER_DAMAGE = "玩家受伤"
+EVENT_PLAYER_HEAL = "玩家治疗"
 EVENT_GAME_START = "game_start"
 EVENT_GAME_END = "game_end"
 
@@ -80,9 +80,9 @@ STATUS_LIST = [STATUS_CARD_BUFF, STATUS_CARD_DEBUFF, STATUS_CARD_NO_EFFECT]
 NCARDITEM items are different types of card items
 that is of negative effect in the game.
 """
-NCARDITEM_SELF_DAMAGE = "self_damage"
-NCARDITEM_CARD_DISCARD = "card_discard"
-NCARDITEM_COST_USAGE = "cost_usage"
+NCARDITEM_SELF_DAMAGE = "对自己造成伤害"
+NCARDITEM_CARD_DISCARD = "丢弃手牌"
+NCARDITEM_COST_USAGE = "花费Cost"
 
 NCARDITEMLIST = [NCARDITEM_SELF_DAMAGE, NCARDITEM_CARD_DISCARD, NCARDITEM_COST_USAGE]
 
@@ -90,10 +90,10 @@ NCARDITEMLIST = [NCARDITEM_SELF_DAMAGE, NCARDITEM_CARD_DISCARD, NCARDITEM_COST_U
 PCARDITEM items are different types of card items
 that is of positive effect in the game.
 """
-PCARDITEM_HEAL = "heal"
-PCARDITEM_CARD_DRAW = "card_draw"
-PCARDITEM_DAMAGE = "damage"
-PCARDITEM_COST_RECOVER = "cost_recover"
+PCARDITEM_HEAL = "治疗自身"
+PCARDITEM_CARD_DRAW = "获取卡牌"
+PCARDITEM_DAMAGE = "对对手造成伤害"
+PCARDITEM_COST_RECOVER = "回复Cost"
 
 PCARDITEMLIST = [
     PCARDITEM_HEAL,
